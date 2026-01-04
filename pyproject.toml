@@ -11,7 +11,7 @@ Repository = "https://github.com/PBandDev/comfyui-node-organizer"
 [tool.comfy]
 PublisherId = "pbanddev"
 DisplayName = "Node Organizer"
-Icon = "https://raw.githubusercontent.com/PBandDev/comfyui-node-organizer/main/assets/cog.svg"
+Icon = "https://raw.githubusercontent.com/PBandDev/comfyui-node-organizer/main/assets/icon.svg"
 requires-comfyui = ">=0.3.0"
 includes = ['dist/']
 
