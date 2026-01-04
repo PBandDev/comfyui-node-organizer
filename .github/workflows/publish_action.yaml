@@ -1,0 +1,87 @@
+name: Publish to Comfy registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+jobs:
+  bump-version:
+    name: Bump version and create tag
+    runs-on: ubuntu-latest
+    if: github.actor == github.repository_owner
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version
+        id: bump
+        uses: callowayproject/bump-my-version@master
+        env:
+          BUMPVERSION_TAG: "true"
+        with:
+          args: ${{ github.event.inputs.bump_type }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        if: steps.bump.outputs.bumped == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump.outputs.current-version }}
+          name: Release v${{ steps.bump.outputs.current-version }}
+          body: |
+            ## Version ${{ steps.bump.outputs.current-version }}
+
+            Bumped from version ${{ steps.bump.outputs.previous-version }} to ${{ steps.bump.outputs.current-version }}
+
+            This release was automatically created by the version bump workflow.
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+  publish-node:
+    name: Publish Custom Node to registry
+    runs-on: ubuntu-latest
+    needs: bump-version
+    if: github.actor == github.repository_owner
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build custom node
+        run: pnpm build
+
+      - name: Publish Custom Node
+        uses: Comfy-Org/publish-node-action@main
+        with:
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          skip_checkout: "true"

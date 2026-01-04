@@ -1,0 +1,33 @@
+{
+  "name": "comfyui-node-organizer",
+  "version": "1.2.0",
+  "description": "ComfyUI extension to organize nodes",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "watch": "tsc && vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "comfyui",
+    "custom node",
+    "custom",
+    "node",
+    "extension",
+    "organizer",
+    "node",
+    "extension"
+  ],
+  "author": "PBandDev",
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.17.1",
+  "dependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  },
+  "devDependencies": {
+    "@comfyorg/comfyui-frontend-types": "^1.32.1",
+    "@types/node": "^24.10.0"
+  }
+}

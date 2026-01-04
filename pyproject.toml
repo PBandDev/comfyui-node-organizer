@@ -1,0 +1,41 @@
+[project]
+name = "comfyui-node-organizer"
+description = "ComfyUI extension to organize nodes"
+version = "1.2.0"
+readme = "README.md"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/PBandDev/comfyui-node-organizer"
+
+[tool.comfy]
+PublisherId = "pbanddev"
+DisplayName = "Node Organizer"
+Icon = "https://raw.githubusercontent.com/PBandDev/comfyui-node-organizer/main/assets/cog.svg"
+requires-comfyui = ">=0.3.0"
+includes = ['dist/']
+
+[tool.bumpversion]
+current_version = "1.2.0"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+serialize = ["{major}.{minor}.{patch}"]
+commit = true
+tag = true
+tag_name = "v{new_version}"
+tag_message = "Release version {new_version}"
+message = "chore: bump version to {new_version} [skip ci]"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "package.json"
+search = '"version": "{current_version}"'
+replace = '"version": "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "src/index.ts"
+search = 'Version {current_version}'
+replace = 'Version {new_version}'
