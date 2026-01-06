@@ -1,6 +1,6 @@
 {
   "name": "comfyui-node-organizer",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "ComfyUI extension to organize nodes",
   "type": "module",
   "scripts": {
