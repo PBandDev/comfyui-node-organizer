@@ -14,9 +14,42 @@ on:
         default: patch
 
 jobs:
+  test:
+    name: Test before publish
+    runs-on: ubuntu-latest
+    if: github.actor == github.repository_owner
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
   bump-version:
     name: Bump version and create tag
     runs-on: ubuntu-latest
+    needs: test
     if: github.actor == github.repository_owner
     permissions:
       contents: write
@@ -76,9 +109,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
-
-      - name: Run tests
-        run: pnpm test
 
       - name: Build custom node
         run: pnpm build
