@@ -12,12 +12,15 @@ interface LayoutEntity {
   y: number;
   width: number;
   height: number;
+  initialX: number;  // Original position before overlap resolution
+  initialY: number;  // Original position before overlap resolution
   group?: LGraphGroup;
   node?: LGraphNode;
   layoutGroup?: LayoutGroup;
 }
 import { packNodesIntoRows, getPackedWidth } from "./bin-pack";
 import { restoreReroutePositions } from "./reroute-collapse";
+import { getInternalEdges, assignMemberLayers } from "./layout-utils";
 import { debugLog } from "../debug";
 
 /** Title bar height for groups */
@@ -336,124 +339,6 @@ export function applyPositions(state: LayoutState): void {
 }
 
 /**
- * Get internal edges between group members by examining node connections
- * Returns array of [sourceId, targetId] pairs where both are in the group
- */
-function getInternalEdges(
-  memberIds: Set<number>,
-  allNodes: Map<number, LGraphNode>
-): Array<[number, number]> {
-  const edges: Array<[number, number]> = [];
-
-  // Build a map of linkId -> sourceNodeId for all member outputs
-  const linkToSource = new Map<number, number>();
-  for (const memberId of memberIds) {
-    const node = allNodes.get(memberId);
-    if (!node?.outputs) continue;
-
-    for (const output of node.outputs) {
-      if (output.links) {
-        for (const linkId of output.links) {
-          linkToSource.set(linkId, memberId);
-        }
-      }
-    }
-  }
-
-  // Check each member's inputs to find internal connections
-  for (const memberId of memberIds) {
-    const node = allNodes.get(memberId);
-    if (!node?.inputs) continue;
-
-    for (const input of node.inputs) {
-      if (input.link !== null && input.link !== undefined) {
-        const sourceId = linkToSource.get(input.link);
-        if (sourceId !== undefined && memberIds.has(sourceId)) {
-          edges.push([sourceId, memberId]);
-        }
-      }
-    }
-  }
-
-  return edges;
-}
-
-/**
- * Assign layers to group members using longest-path algorithm
- * Returns members grouped by layer (index 0 = sources)
- */
-function assignMemberLayers(
-  memberIds: Set<number>,
-  edges: Array<[number, number]>,
-  allNodes: Map<number, LGraphNode>
-): LGraphNode[][] {
-  // Build adjacency and in-degree
-  const successors = new Map<number, number[]>();
-  const inDegree = new Map<number, number>();
-
-  for (const id of memberIds) {
-    successors.set(id, []);
-    inDegree.set(id, 0);
-  }
-
-  for (const [source, target] of edges) {
-    successors.get(source)!.push(target);
-    inDegree.set(target, (inDegree.get(target) ?? 0) + 1);
-  }
-
-  // Longest-path layer assignment via topological sort
-  const nodeLayer = new Map<number, number>();
-  const queue: number[] = [];
-
-  // Start with sources (in-degree 0)
-  for (const id of memberIds) {
-    if ((inDegree.get(id) ?? 0) === 0) {
-      queue.push(id);
-      nodeLayer.set(id, 0);
-    }
-  }
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const currentLayer = nodeLayer.get(current) ?? 0;
-
-    for (const succ of successors.get(current) ?? []) {
-      // Update successor layer to max of current paths
-      const succLayer = nodeLayer.get(succ) ?? 0;
-      nodeLayer.set(succ, Math.max(succLayer, currentLayer + 1));
-
-      // Decrease in-degree and add to queue when all predecessors processed
-      const newInDegree = (inDegree.get(succ) ?? 1) - 1;
-      inDegree.set(succ, newInDegree);
-      if (newInDegree === 0) {
-        queue.push(succ);
-      }
-    }
-  }
-
-  // Handle any unvisited nodes (cycles or disconnected)
-  for (const id of memberIds) {
-    if (!nodeLayer.has(id)) {
-      nodeLayer.set(id, 0);
-    }
-  }
-
-  // Group by layer
-  const maxLayer = Math.max(...nodeLayer.values(), 0);
-  const layers: LGraphNode[][] = Array.from({ length: maxLayer + 1 }, () => []);
-
-  for (const id of memberIds) {
-    const node = allNodes.get(id);
-    if (node) {
-      const layer = nodeLayer.get(id) ?? 0;
-      layers[layer].push(node);
-    }
-  }
-
-  return layers;
-}
-
-/**
  * Re-layout group contents using proper Sugiyama-style layout for connected members
  * or bin packing for disconnected members
  * Returns the final Y position after all contents
@@ -653,14 +538,18 @@ function collectEntities(state: LayoutState): LayoutEntity[] {
   // Add top-level groups (high priority - they anchor)
   for (const lg of groups ?? []) {
     if (lg.parentGroup) continue; // Skip nested, handled with parent
+    const x = lg.group.pos?.[0] ?? 0;
+    const y = lg.group.pos?.[1] ?? 0;
     entities.push({
       id: `group_${lg.group.title ?? entities.length}`,
       type: "group",
       priority: 100,
-      x: lg.group.pos?.[0] ?? 0,
-      y: lg.group.pos?.[1] ?? 0,
+      x,
+      y,
       width: lg.group.size?.[0] ?? 0,
       height: lg.group.size?.[1] ?? 0,
+      initialX: x,
+      initialY: y,
       group: lg.group,
       layoutGroup: lg,
     });
@@ -672,14 +561,18 @@ function collectEntities(state: LayoutState): LayoutEntity[] {
     if (node.flags?.pinned || node.locked) continue;
 
     const isDisconnected = disconnectedNodes?.has(nodeId) ?? false;
+    const x = node.pos?.[0] ?? 0;
+    const y = node.pos?.[1] ?? 0;
     entities.push({
       id: `node_${nodeId}`,
       type: "node",
       priority: isDisconnected ? 10 : 50,
-      x: node.pos?.[0] ?? 0,
-      y: node.pos?.[1] ?? 0,
+      x,
+      y,
       width: node.size?.[0] ?? 200,
       height: node.size?.[1] ?? 100,
+      initialX: x,
+      initialY: y,
       node,
     });
   }
@@ -688,47 +581,15 @@ function collectEntities(state: LayoutState): LayoutEntity[] {
 }
 
 /**
- * Apply position shift to an entity (group or node)
- * For groups, also shifts all member nodes and child groups
- */
-function applyEntityShift(
-  entity: LayoutEntity,
-  dx: number,
-  dy: number,
-  allNodes: Map<number, LGraphNode>
-): void {
-  if (entity.type === "group" && entity.group && entity.layoutGroup) {
-    // Shift group position
-    if (entity.group.pos) {
-      entity.group.pos[0] += dx;
-      entity.group.pos[1] += dy;
-    }
-    // Shift all member nodes
-    for (const nodeId of entity.layoutGroup.memberIds) {
-      const node = allNodes.get(nodeId);
-      if (node?.pos) {
-        node.pos[0] += dx;
-        node.pos[1] += dy;
-      }
-    }
-    // Shift child groups recursively
-    shiftChildGroups(entity.layoutGroup, dx, dy, allNodes);
-  } else if (entity.type === "node" && entity.node?.pos) {
-    entity.node.pos[0] += dx;
-    entity.node.pos[1] += dy;
-  }
-}
-
-/**
  * Scanline overlap resolution for X-axis (push right)
  * Entities are sorted by X, overlapping entities are pushed right
  * Higher priority entities anchor, lower priority pushed
+ * Only updates entity.x/y - does NOT modify node.pos (deferred to applyFinalPositions)
  * Returns true if any entity was moved
  */
 function scanlineResolveX(
   entities: LayoutEntity[],
-  config: LayoutConfig,
-  allNodes: Map<number, LGraphNode>
+  config: LayoutConfig
 ): boolean {
   let anyChanged = false;
   let iterations = 0;
@@ -739,8 +600,8 @@ function scanlineResolveX(
     changed = false;
     iterations++;
 
-    // Sort by X position, then by priority (higher priority = earlier in sort)
-    entities.sort((a, b) => a.x - b.x || b.priority - a.priority);
+    // Sort by X position, then priority, then ID (deterministic)
+    entities.sort((a, b) => a.x - b.x || b.priority - a.priority || a.id.localeCompare(b.id));
 
     for (let i = 0; i < entities.length; i++) {
       const anchor = entities[i];
@@ -757,10 +618,9 @@ function scanlineResolveX(
         // Check X overlap
         const requiredX = anchor.x + anchor.width + config.horizontalGap;
         if (pushed.x < requiredX) {
-          // Overlap! Push entity j to the right
+          // Overlap! Push entity j to the right (entity only, not node.pos)
           const dx = requiredX - pushed.x;
           pushed.x = requiredX;
-          applyEntityShift(pushed, dx, 0, allNodes);
           changed = true;
           anyChanged = true;
           debugLog(`Scanline X: ${pushed.id} right ${dx.toFixed(0)}px (avoid ${anchor.id})`);
@@ -779,12 +639,12 @@ function scanlineResolveX(
  * Scanline overlap resolution for Y-axis (push down)
  * Entities are sorted by Y, overlapping entities are pushed down
  * Higher priority entities anchor, lower priority pushed
+ * Only updates entity.x/y - does NOT modify node.pos (deferred to applyFinalPositions)
  * Returns true if any entity was moved
  */
 function scanlineResolveY(
   entities: LayoutEntity[],
-  config: LayoutConfig,
-  allNodes: Map<number, LGraphNode>
+  config: LayoutConfig
 ): boolean {
   let anyChanged = false;
   let iterations = 0;
@@ -795,8 +655,8 @@ function scanlineResolveY(
     changed = false;
     iterations++;
 
-    // Sort by Y position, then by priority (higher priority = earlier)
-    entities.sort((a, b) => a.y - b.y || b.priority - a.priority);
+    // Sort by Y position, then priority, then ID (deterministic)
+    entities.sort((a, b) => a.y - b.y || b.priority - a.priority || a.id.localeCompare(b.id));
 
     for (let i = 0; i < entities.length; i++) {
       const anchor = entities[i];
@@ -813,10 +673,9 @@ function scanlineResolveY(
         // Check Y overlap
         const requiredY = anchor.y + anchor.height + config.verticalGap;
         if (pushed.y < requiredY) {
-          // Overlap! Push entity j down
+          // Overlap! Push entity j down (entity only, not node.pos)
           const dy = requiredY - pushed.y;
           pushed.y = requiredY;
-          applyEntityShift(pushed, 0, dy, allNodes);
           changed = true;
           anyChanged = true;
           debugLog(`Scanline Y: ${pushed.id} down ${dy.toFixed(0)}px (avoid ${anchor.id})`);
@@ -877,9 +736,49 @@ function shiftChildGroups(
 }
 
 /**
+ * Apply final entity positions to node.pos after scanline resolution
+ * Calculates deltas from initial positions and applies to groups/nodes
+ */
+function applyFinalPositions(
+  entities: LayoutEntity[],
+  allNodes: Map<number, LGraphNode>
+): void {
+  for (const entity of entities) {
+    const dx = entity.x - entity.initialX;
+    const dy = entity.y - entity.initialY;
+
+    // Skip if no movement
+    if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) continue;
+
+    if (entity.type === "group" && entity.group && entity.layoutGroup) {
+      // Set group's final position
+      if (entity.group.pos) {
+        entity.group.pos[0] = entity.x;
+        entity.group.pos[1] = entity.y;
+      }
+      // Shift all member nodes by the same delta
+      for (const nodeId of entity.layoutGroup.memberIds) {
+        const node = allNodes.get(nodeId);
+        if (node?.pos) {
+          node.pos[0] += dx;
+          node.pos[1] += dy;
+        }
+      }
+      // Shift child groups recursively
+      shiftChildGroups(entity.layoutGroup, dx, dy, allNodes);
+    } else if (entity.type === "node" && entity.node?.pos) {
+      // Set node's final position
+      entity.node.pos[0] = entity.x;
+      entity.node.pos[1] = entity.y;
+    }
+  }
+}
+
+/**
  * Unified overlap resolution using scanline algorithm
  * Uses priority-based monotonic pushing (right/down only) to prevent oscillation
  * Groups have highest priority and anchor in place
+ * Idempotent: decouples entity tracking from node.pos writes
  */
 export function resolveAllOverlaps(state: LayoutState): void {
   const { allNodes, config } = state;
@@ -891,11 +790,14 @@ export function resolveAllOverlaps(state: LayoutState): void {
     return;
   }
 
-  // Pass 1: X-axis (left-to-right pushing)
-  scanlineResolveX(entities, config, allNodes);
+  // Pass 1: X-axis (left-to-right pushing) - updates entity.x only
+  scanlineResolveX(entities, config);
 
-  // Pass 2: Y-axis (top-to-bottom pushing)
-  scanlineResolveY(entities, config, allNodes);
+  // Pass 2: Y-axis (top-to-bottom pushing) - updates entity.y only
+  scanlineResolveY(entities, config);
+
+  // Pass 3: Apply final positions to node.pos
+  applyFinalPositions(entities, allNodes);
 
   debugLog(`Overlap resolution: ${entities.length} entities processed`);
 }

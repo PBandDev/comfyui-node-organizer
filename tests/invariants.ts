@@ -304,3 +304,49 @@ export function assertIdempotent(graph: LGraph): void {
 
   expect(differences, `Layout is not idempotent: ${differences.length} entities moved`).toEqual([]);
 }
+
+/**
+ * Assert that nodes which were inside groups before layout remain inside their groups after
+ * This catches regressions where layout breaks group containment
+ * Must be called with graph state BEFORE and AFTER layout
+ */
+export function assertGroupMembershipPreserved(
+  originalGraph: LGraph,
+  layoutGraph: LGraph
+): void {
+  const errors: string[] = [];
+
+  // Get which nodes were inside which groups BEFORE layout
+  const beforeMembership = getNodesInsideGroups(originalGraph);
+
+  // For each node that was in a group, verify it's still in that group after layout
+  for (const [nodeId, originalGroup] of beforeMembership) {
+    const node = layoutGraph._nodes.find((n) => n.id === nodeId);
+    const group = layoutGraph._groups.find((g) => g.id === originalGroup.id);
+
+    if (!node || !group) continue;
+
+    // Check if node is still fully inside the group
+    const nodeRight = node.pos[0] + node.size[0];
+    const nodeBottom = node.pos[1] + node.size[1];
+    const groupRight = group.pos[0] + group.size[0];
+    const groupBottom = group.pos[1] + group.size[1];
+
+    if (
+      node.pos[0] < group.pos[0] ||
+      node.pos[1] < group.pos[1] ||
+      nodeRight > groupRight ||
+      nodeBottom > groupBottom
+    ) {
+      errors.push(
+        `Node ${nodeId} (${node.title}) was in group "${originalGroup.title}" but is now outside: ` +
+          `node [${node.pos[0].toFixed(0)}, ${node.pos[1].toFixed(0)}] vs group [${group.pos[0].toFixed(0)}, ${group.pos[1].toFixed(0)}, ${group.size[0].toFixed(0)}, ${group.size[1].toFixed(0)}]`
+      );
+    }
+  }
+
+  expect(
+    errors,
+    `Found ${errors.length} nodes that moved outside their original groups`
+  ).toEqual([]);
+}

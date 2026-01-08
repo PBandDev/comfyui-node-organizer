@@ -55,6 +55,7 @@ Use docs-mcp server for ComfyUI API reference.
 6. `bin-pack.ts` - FFDH algorithm for multi-column packing
 7. `positioning.ts` - Assign coordinates, place disconnected nodes, restore reroutes
 8. `groups.ts` - Resize groups to fit members
+9. `layout-utils.ts` - Shared functions for internal edge detection and member layer assignment
 
 **Configuration** in `types.ts`:
 - `maxColumns`: 0=auto, 1=vertical stack, 2+=fixed columns
@@ -64,28 +65,29 @@ Use docs-mcp server for ComfyUI API reference.
 **Key design decisions**:
 - `compactVertically` excludes groups from max height (prevents Y explosion)
 - `positionGroupContents` uses translation (preserves relative positions)
-- Group height uses bounding box (not sum of heights)
+- Group dimensions are layer-aware: width = sum of layer widths, height = max of layer heights (for groups with internal connections)
 - `resolveGroupOverlaps` detects and shifts overlapping groups using minimal direction (up/down/right)
 - `assignNodeYPositions` tracks reserved Y regions to prevent node/group overlap within layers
+- **Idempotency**: Layout is a pure function of topology + sizes; overlap resolution decoupled from node.pos writes
 
 ## Testing
 
 **Vitest-based regression testing** in `tests/`:
 
 - `tests/fixtures/` - 4 workflow JSONs (nested-groups, complex-parallel, simple-dag, nested-wrapper)
-- `tests/helpers.ts` - Fixture loader, workflow→LGraph converter
-- `tests/invariants.ts` - 5 reusable assertions:
+- `tests/helpers.ts` - Fixture loader, workflow→LGraph converter, cloneGraph
+- `tests/invariants.ts` - 6 reusable assertions:
   - `assertNoOverlaps` - AABB collision detection
   - `assertNodesInsideGroups` - nodes stay in groups
   - `assertFiniteCoordinates` - no NaN/Infinity
   - `assertTopologicalOrder` - DAG order preserved
   - `assertIdempotent` - stable after multiple runs
+  - `assertGroupMembershipPreserved` - nodes originally in groups remain in groups
 - `tests/integration/layout.test.ts` - Main regression tests
 
-**Known issues** (skipped tests, documented for future fixes):
-- `complex-parallel.json`: 22 entities move on second run (non-idempotent)
-
 **Coverage**: 70% line threshold, excludes `src/index.ts` (ComfyUI runtime) and `src/layout/reroute-collapse.ts` (no fixtures)
+
+All 4 fixtures pass all invariants including idempotency.
 
 ## CI/CD
 

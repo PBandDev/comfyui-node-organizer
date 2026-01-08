@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_CONFIG } from "./types";
 import { classifyNodes } from "./node-classifier";
 import { findRerouteChains, getRerouteNodeIds, getVirtualEdges } from "./reroute-collapse";
+import { getInternalEdges, assignMemberLayers } from "./layout-utils";
 import { debugLog } from "../debug";
 
 /**
@@ -213,6 +214,7 @@ export function buildLayoutGraph(
 
   // Fourth pass: Assign nodes to their INNERMOST containing group
   // A node belongs only to the deepest group that contains it
+  // Membership is determined from original workflow positions (user's design intent)
   const nodeToGroup = new Map<number, LayoutGroup>();
 
   for (const [nodeId, node] of allNodes) {
@@ -256,29 +258,15 @@ export function buildLayoutGraph(
   // Process from deepest to shallowest
   for (let depth = maxDepth; depth >= 0; depth--) {
     for (const layoutGroup of groupsByDepth[depth]) {
-      let totalWidth = 0;
-      let totalHeight = 0;
+      // Calculate dimensions based on internal structure
+      const { width: memberWidth, height: memberHeight } = calculateGroupMemberDimensions(
+        layoutGroup,
+        allNodes,
+        fullConfig
+      );
 
-      // Use bounding box of member positions (more accurate than summing heights)
-      let minY = Infinity;
-      let maxY = -Infinity;
-      let hasMembers = false;
-
-      for (const nodeId of layoutGroup.memberIds) {
-        const node = allNodes.get(nodeId);
-        if (!node) continue;
-        hasMembers = true;
-        const w = node.size?.[0] ?? 200;
-        const h = node.size?.[1] ?? 100;
-        const ny = node.pos?.[1] ?? 0;
-        totalWidth = Math.max(totalWidth, w);
-        minY = Math.min(minY, ny);
-        maxY = Math.max(maxY, ny + h);
-      }
-
-      if (hasMembers && minY !== Infinity) {
-        totalHeight = maxY - minY;
-      }
+      let totalWidth = memberWidth;
+      let totalHeight = memberHeight;
 
       // Include child groups (already calculated in previous iterations)
       // Child groups add to height below members
@@ -286,6 +274,9 @@ export function buildLayoutGraph(
       for (const child of layoutGroup.childGroups) {
         totalWidth = Math.max(totalWidth, child.width);
         childGroupsHeight += child.height + fullConfig.verticalGap;
+      }
+      if (memberHeight > 0 && childGroupsHeight > 0) {
+        totalHeight += fullConfig.verticalGap; // Gap between members and children
       }
       totalHeight += childGroupsHeight;
 
@@ -488,6 +479,78 @@ export function buildLayoutGraph(
     disconnectedNodes,
     rerouteChains,
   };
+}
+
+/**
+ * Calculate group member dimensions based on internal structure
+ * For groups with internal connections: uses layer-aware sizing (width = sum of layer widths, height = max layer height)
+ * For groups without internal connections: uses simple vertical stacking (width = max, height = sum)
+ */
+function calculateGroupMemberDimensions(
+  layoutGroup: LayoutGroup,
+  allNodes: Map<number, LGraphNode>,
+  config: LayoutConfig
+): { width: number; height: number } {
+  const memberNodes = [...layoutGroup.memberIds]
+    .map((id) => allNodes.get(id))
+    .filter((n): n is LGraphNode => n !== undefined);
+
+  if (memberNodes.length === 0) {
+    return { width: 0, height: 0 };
+  }
+
+  // Check for internal connections between members
+  const edges = getInternalEdges(layoutGroup.memberIds, allNodes);
+
+  if (edges.length > 0) {
+    // Has internal layers - calculate per-layer dimensions
+    const layers = assignMemberLayers(layoutGroup.memberIds, edges, allNodes);
+    let totalWidth = 0;
+    let maxHeight = 0;
+
+    for (const layer of layers) {
+      if (layer.length === 0) continue;
+
+      let layerMaxWidth = 0;
+      let layerHeight = 0;
+
+      for (const node of layer) {
+        layerMaxWidth = Math.max(layerMaxWidth, node.size?.[0] ?? 200);
+        layerHeight += (node.size?.[1] ?? 100) + config.verticalGap;
+      }
+
+      // Remove trailing gap
+      if (layerHeight > 0) {
+        layerHeight -= config.verticalGap;
+      }
+
+      totalWidth += layerMaxWidth + config.horizontalGap;
+      maxHeight = Math.max(maxHeight, layerHeight);
+    }
+
+    // Remove trailing gap
+    if (totalWidth > 0) {
+      totalWidth -= config.horizontalGap;
+    }
+
+    return { width: totalWidth, height: maxHeight };
+  } else {
+    // No internal connections - simple vertical stacking
+    let maxWidth = 0;
+    let totalHeight = 0;
+
+    for (const node of memberNodes) {
+      maxWidth = Math.max(maxWidth, node.size?.[0] ?? 200);
+      totalHeight += (node.size?.[1] ?? 100) + config.verticalGap;
+    }
+
+    // Remove trailing gap
+    if (totalHeight > 0) {
+      totalHeight -= config.verticalGap;
+    }
+
+    return { width: maxWidth, height: totalHeight };
+  }
 }
 
 /**

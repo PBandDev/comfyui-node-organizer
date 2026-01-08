@@ -1,5 +1,5 @@
 import { describe, it, beforeEach, expect } from "vitest";
-import { loadFixture } from "../helpers";
+import { loadFixture, cloneGraph } from "../helpers";
 import { layoutGraph } from "../../src/layout/index";
 import {
   assertNoOverlaps,
@@ -7,6 +7,7 @@ import {
   assertFiniteCoordinates,
   assertTopologicalOrder,
   assertIdempotent,
+  assertGroupMembershipPreserved,
 } from "../invariants";
 import type { LGraph } from "../../src/layout/types";
 
@@ -20,24 +21,24 @@ describe("layoutGraph regression tests", () => {
     "simple-dag.json", // 7 nodes, no groups, basic txt2img DAG
     "nested-groups.json", // Nested groups with node inside inner group
     "nested-wrapper.json", // Group Wrapper containing nested groups
+    "complex-parallel.json", // 26 nodes, parallel KSampler High/Low, 5 groups
   ];
 
   // Fixtures with known issues (documented for future fixes)
   // These use test.skip() to document expected failures
-  const knownIssueFixtures = [
-    {
-      name: "complex-parallel.json",
-      issues: ["idempotent"], // 22 entities move on second run (149px movements)
-    },
+  const knownIssueFixtures: Array<{ name: string; issues: string[] }> = [
+    // All fixtures now pass - keeping array for future regression tracking
   ];
 
   // Test passing fixtures with all invariants
   for (const fixture of passingFixtures) {
     describe(fixture, () => {
       let graph: LGraph;
+      let originalGraph: LGraph;
 
       beforeEach(() => {
         graph = loadFixture(fixture);
+        originalGraph = cloneGraph(graph); // Capture state before layout
         layoutGraph(graph);
       });
 
@@ -60,6 +61,10 @@ describe("layoutGraph regression tests", () => {
       it("is idempotent (stable after multiple runs)", () => {
         assertIdempotent(graph);
       });
+
+      it("preserves group membership", () => {
+        assertGroupMembershipPreserved(originalGraph, graph);
+      });
     });
   }
 
@@ -67,9 +72,11 @@ describe("layoutGraph regression tests", () => {
   for (const { name, issues } of knownIssueFixtures) {
     describe(name, () => {
       let graph: LGraph;
+      let originalGraph: LGraph;
 
       beforeEach(() => {
         graph = loadFixture(name);
+        originalGraph = cloneGraph(graph);
         layoutGraph(graph);
       });
 
@@ -104,6 +111,17 @@ describe("layoutGraph regression tests", () => {
       } else {
         it("is idempotent (stable after multiple runs)", () => {
           assertIdempotent(graph);
+        });
+      }
+
+      // Skip membership test if known issue
+      if (issues.includes("membership")) {
+        it.skip("preserves group membership (KNOWN ISSUE)", () => {
+          assertGroupMembershipPreserved(originalGraph, graph);
+        });
+      } else {
+        it("preserves group membership", () => {
+          assertGroupMembershipPreserved(originalGraph, graph);
         });
       }
     });
