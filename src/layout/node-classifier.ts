@@ -1,5 +1,5 @@
 import type { LGraph, LLink, ClassifiedNodes } from "./types";
-import { debugLog } from "../index";
+import { debugLog } from "../debug";
 
 /**
  * Iterate over links in a graph (handles Map, Record, and Array formats)

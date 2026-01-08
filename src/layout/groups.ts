@@ -1,5 +1,5 @@
 import type { LayoutState, LGraphGroup } from "./types";
-import { debugLog } from "../index";
+import { debugLog } from "../debug";
 
 /** Title bar height for groups */
 const GROUP_TITLE_HEIGHT = 50;

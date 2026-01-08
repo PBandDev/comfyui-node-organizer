@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "watch": "tsc && vite build --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "comfyui",
@@ -28,6 +31,8 @@
   },
   "devDependencies": {
     "@comfyorg/comfyui-frontend-types": "^1.32.1",
-    "@types/node": "^24.10.0"
+    "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "vitest": "^4.0.16"
   }
 }

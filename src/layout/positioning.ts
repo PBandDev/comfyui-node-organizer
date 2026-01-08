@@ -18,7 +18,7 @@ interface LayoutEntity {
 }
 import { packNodesIntoRows, getPackedWidth } from "./bin-pack";
 import { restoreReroutePositions } from "./reroute-collapse";
-import { debugLog } from "../index";
+import { debugLog } from "../debug";
 
 /** Title bar height for groups */
 const GROUP_TITLE_HEIGHT = 50;

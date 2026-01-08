@@ -9,11 +9,14 @@ ComfyUI custom node extension that organizes nodes. Frontend-only extension (no 
 ## Commands
 
 ```bash
-pnpm install       # install deps
-pnpm dev           # dev server
-pnpm build         # typecheck + build to dist/
-pnpm watch         # build with watch mode
-pnpm typecheck     # tsc --noEmit
+pnpm install        # install deps
+pnpm dev            # dev server
+pnpm build          # typecheck + build to dist/
+pnpm watch          # build with watch mode
+pnpm typecheck      # tsc --noEmit
+pnpm test           # run tests
+pnpm test:watch     # run tests in watch mode
+pnpm test:coverage  # run tests with coverage report
 ```
 
 Version bumping: `uv run bump-my-version bump patch|minor|major`
@@ -24,6 +27,7 @@ Version bumping: `uv run bump-my-version bump patch|minor|major`
 
 - `__init__.py` - ComfyUI entrypoint, points `WEB_DIRECTORY` to `./dist`
 - `src/index.ts` - Extension entry, registers via `app.registerExtension()`
+- `src/debug.ts` - Debug logging utilities (separated for testability)
 - `dist/` - Built JS output, loaded by ComfyUI frontend
 
 **Build system**: Vite with custom plugin that injects `import { app } from "/scripts/app.js"` at build time. ComfyUI scripts are external (not bundled).
@@ -64,9 +68,31 @@ Use docs-mcp server for ComfyUI API reference.
 - `resolveGroupOverlaps` detects and shifts overlapping groups using minimal direction (up/down/right)
 - `assignNodeYPositions` tracks reserved Y regions to prevent node/group overlap within layers
 
+## Testing
+
+**Vitest-based regression testing** in `tests/`:
+
+- `tests/fixtures/` - 4 workflow JSONs (nested-groups, complex-parallel, simple-dag, nested-wrapper)
+- `tests/helpers.ts` - Fixture loader, workflow→LGraph converter
+- `tests/invariants.ts` - 5 reusable assertions:
+  - `assertNoOverlaps` - AABB collision detection
+  - `assertNodesInsideGroups` - nodes stay in groups
+  - `assertFiniteCoordinates` - no NaN/Infinity
+  - `assertTopologicalOrder` - DAG order preserved
+  - `assertIdempotent` - stable after multiple runs
+- `tests/integration/layout.test.ts` - Main regression tests
+
+**Known issues** (skipped tests, documented for future fixes):
+- `nested-groups.json`: node_15 overlaps group_3 after layout
+- `complex-parallel.json`: 22 entities move on second run (non-idempotent)
+- `nested-wrapper.json`: nodes overlap Group Wrapper
+
+**Coverage**: 70% line threshold, excludes `src/index.ts` (ComfyUI runtime) and `src/layout/reroute-collapse.ts` (no fixtures)
+
 ## CI/CD
 
 `.github/workflows/publish_action.yaml` - Manual dispatch workflow that:
-1. Bumps version via bump-my-version
-2. Creates GitHub release
-3. Builds and publishes to Comfy registry
+1. Runs tests
+2. Bumps version via bump-my-version
+3. Creates GitHub release
+4. Builds and publishes to Comfy registry

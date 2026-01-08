@@ -11,7 +11,7 @@ import type {
 import { DEFAULT_CONFIG } from "./types";
 import { classifyNodes } from "./node-classifier";
 import { findRerouteChains, getRerouteNodeIds, getVirtualEdges } from "./reroute-collapse";
-import { debugLog } from "../index";
+import { debugLog } from "../debug";
 
 /**
  * Runtime subgraph I/O node (has pos/size like regular nodes, not bounding)

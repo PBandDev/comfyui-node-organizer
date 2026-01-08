@@ -1,5 +1,5 @@
 import type { LGraph, LLink, RerouteChain } from "./types";
-import { debugLog } from "../index";
+import { debugLog } from "../debug";
 
 /** Link info for chain detection */
 interface LinkInfo {

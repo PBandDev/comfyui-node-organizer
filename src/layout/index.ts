@@ -12,7 +12,7 @@ import {
   resolveAllOverlaps,
 } from "./positioning";
 import { resizeGroupsToFit } from "./groups";
-import { debugLog } from "../index";
+import { debugLog } from "../debug";
 
 /**
  * Main entry point: layout the entire graph

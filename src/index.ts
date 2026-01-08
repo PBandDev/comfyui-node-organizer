@@ -31,25 +31,6 @@ const SETTINGS_IDS = {
   DEBUG_LOGGING: `${SETTINGS_PREFIX}.Debug Logging`,
 };
 
-/** Check if debug logging is enabled */
-export function isDebugEnabled(): boolean {
-  try {
-    return (
-      app.extensionManager?.setting?.get<boolean>(SETTINGS_IDS.DEBUG_LOGGING) ??
-      false
-    );
-  } catch {
-    return false;
-  }
-}
-
-/** Log message only if debug logging is enabled */
-export function debugLog(message: string, ...args: unknown[]): void {
-  if (isDebugEnabled()) {
-    console.log(`[node-organizer] ${message}`, ...args);
-  }
-}
-
 app.registerExtension({
   name: "ComfyUI Node Organizer",
   settings: [
