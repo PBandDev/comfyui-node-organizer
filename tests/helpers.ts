@@ -1,7 +1,12 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { LGraph, LGraphNode, LGraphGroup, LLink } from "../src/layout/types";
+import type {
+  LGraph,
+  LGraphNode,
+  LGraphGroup,
+  LLink,
+} from "../src/layout/types";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -103,8 +108,8 @@ function convertSubgraphToLGraph(subgraph: SubgraphDefinition): LGraph {
     id: n.id,
     type: n.type,
     title: n.title ?? n.type,
-    pos: [...n.pos] as [number, number],
-    size: [...n.size] as [number, number],
+    pos: [...n.pos],
+    size: [...n.size],
     inputs:
       n.inputs?.map((i) => ({
         name: i.name,
@@ -139,15 +144,12 @@ function convertSubgraphToLGraph(subgraph: SubgraphDefinition): LGraph {
   const groups: LGraphGroup[] = (subgraph.groups ?? []).map((g, idx) => ({
     id: g.id ?? idx,
     title: g.title,
-    pos: [g.bounding[0], g.bounding[1]] as [number, number],
-    size: [g.bounding[2], g.bounding[3]] as [number, number],
+    pos: [g.bounding[0], g.bounding[1]],
+    size: [g.bounding[2], g.bounding[3]],
   }));
 
   // Create graph with I/O nodes in runtime format (pos/size from bounding)
-  const graph: LGraph & {
-    inputNode?: { id: number; pos: [number, number]; size: [number, number] };
-    outputNode?: { id: number; pos: [number, number]; size: [number, number] };
-  } = {
+  const graph: LGraph = {
     _nodes: nodes,
     _groups: groups,
     links,
@@ -183,8 +185,8 @@ export function convertWorkflowToLGraph(workflow: WorkflowJSON): LGraph {
     id: n.id,
     type: n.type,
     title: n.title ?? n.type,
-    pos: [...n.pos] as [number, number],
-    size: [...n.size] as [number, number],
+    pos: [...n.pos],
+    size: [...n.size],
     inputs:
       n.inputs?.map((i) => ({
         name: i.name,
@@ -204,7 +206,14 @@ export function convertWorkflowToLGraph(workflow: WorkflowJSON): LGraph {
 
   // Convert links: [linkId, originId, originSlot, targetId, targetSlot, type]
   const links = new Map<number, LLink>();
-  for (const [linkId, originId, originSlot, targetId, targetSlot, type] of workflow.links) {
+  for (const [
+    linkId,
+    originId,
+    originSlot,
+    targetId,
+    targetSlot,
+    type,
+  ] of workflow.links) {
     links.set(linkId, {
       id: linkId,
       origin_id: originId,
@@ -219,8 +228,8 @@ export function convertWorkflowToLGraph(workflow: WorkflowJSON): LGraph {
   const groups: LGraphGroup[] = (workflow.groups ?? []).map((g, idx) => ({
     id: g.id ?? idx,
     title: g.title,
-    pos: [g.bounding[0], g.bounding[1]] as [number, number],
-    size: [g.bounding[2], g.bounding[3]] as [number, number],
+    pos: [g.bounding[0], g.bounding[1]],
+    size: [g.bounding[2], g.bounding[3]],
   }));
 
   return {
@@ -236,7 +245,10 @@ export function convertWorkflowToLGraph(workflow: WorkflowJSON): LGraph {
 export function capturePositions(
   graph: LGraph
 ): Map<string, { x: number; y: number; width: number; height: number }> {
-  const positions = new Map<string, { x: number; y: number; width: number; height: number }>();
+  const positions = new Map<
+    string,
+    { x: number; y: number; width: number; height: number }
+  >();
 
   for (const node of graph._nodes) {
     positions.set(`node_${node.id}`, {
@@ -257,20 +269,37 @@ export function capturePositions(
   }
 
   // Capture I/O node positions if present
-  const graphAny = graph as Record<string, unknown>;
-  for (const key of ["inputNode", "outputNode"]) {
-    const ioNode = graphAny[key] as { id: number; pos: [number, number]; size: [number, number] } | undefined;
-    if (ioNode?.pos && ioNode?.size) {
-      positions.set(`io_${ioNode.id}`, {
-        x: ioNode.pos[0],
-        y: ioNode.pos[1],
-        width: ioNode.size[0],
-        height: ioNode.size[1],
-      });
-    }
+  if (graph.inputNode?.pos && graph.inputNode?.size) {
+    positions.set(`io_${graph.inputNode.id}`, {
+      x: graph.inputNode.pos[0],
+      y: graph.inputNode.pos[1],
+      width: graph.inputNode.size[0],
+      height: graph.inputNode.size[1],
+    });
+  }
+  if (graph.outputNode?.pos && graph.outputNode?.size) {
+    positions.set(`io_${graph.outputNode.id}`, {
+      x: graph.outputNode.pos[0],
+      y: graph.outputNode.pos[1],
+      width: graph.outputNode.size[0],
+      height: graph.outputNode.size[1],
+    });
   }
 
   return positions;
+}
+
+/**
+ * Get links as an iterable array
+ */
+function getLinksArray(links: LGraph["links"]): LLink[] {
+  if (links instanceof Map) {
+    return Array.from(links.values());
+  }
+  if (Array.isArray(links)) {
+    return links;
+  }
+  return Object.values(links);
 }
 
 /**
@@ -278,20 +307,25 @@ export function capturePositions(
  * Preserves I/O nodes if present
  */
 export function cloneGraph(graph: LGraph): LGraph {
+  const linksArr = getLinksArray(graph.links);
+
   const cloned = convertWorkflowToLGraph({
     nodes: graph._nodes.map((n) => ({
       id: n.id,
       type: n.type,
       title: n.title,
-      pos: [...n.pos] as [number, number],
-      size: [...n.size] as [number, number],
+      pos: [...n.pos],
+      size: [...n.size],
       flags: n.flags ? { ...n.flags } : undefined,
       locked: n.locked,
       order: n.order,
       inputs: n.inputs?.map((i) => ({ ...i })),
-      outputs: n.outputs?.map((o) => ({ ...o, links: o.links ? [...o.links] : null })),
+      outputs: n.outputs?.map((o) => ({
+        ...o,
+        links: o.links ? [...o.links] : null,
+      })),
     })),
-    links: Array.from(graph.links.values()).map((l) => [
+    links: linksArr.map((l) => [
       l.id,
       l.origin_id,
       l.origin_slot,
@@ -302,29 +336,24 @@ export function cloneGraph(graph: LGraph): LGraph {
     groups: graph._groups.map((g) => ({
       id: g.id,
       title: g.title,
-      bounding: [g.pos[0], g.pos[1], g.size[0], g.size[1]] as [number, number, number, number],
+      bounding: [g.pos[0], g.pos[1], g.size[0], g.size[1]],
     })),
   });
 
-  // Preserve I/O nodes if present (subgraph graphs)
-  const graphAny = graph as Record<string, unknown>;
-  const clonedAny = cloned as Record<string, unknown>;
-
-  if (graphAny.inputNode && typeof graphAny.inputNode === "object") {
-    const io = graphAny.inputNode as { id: number; pos: [number, number]; size: [number, number] };
-    clonedAny.inputNode = {
-      id: io.id,
-      pos: [...io.pos] as [number, number],
-      size: [...io.size] as [number, number],
+  // Preserve I/O nodes if present
+  if (graph.inputNode) {
+    cloned.inputNode = {
+      id: graph.inputNode.id,
+      pos: [...graph.inputNode.pos],
+      size: [...graph.inputNode.size],
     };
   }
 
-  if (graphAny.outputNode && typeof graphAny.outputNode === "object") {
-    const io = graphAny.outputNode as { id: number; pos: [number, number]; size: [number, number] };
-    clonedAny.outputNode = {
-      id: io.id,
-      pos: [...io.pos] as [number, number],
-      size: [...io.size] as [number, number],
+  if (graph.outputNode) {
+    cloned.outputNode = {
+      id: graph.outputNode.id,
+      pos: [...graph.outputNode.pos],
+      size: [...graph.outputNode.size],
     };
   }
 

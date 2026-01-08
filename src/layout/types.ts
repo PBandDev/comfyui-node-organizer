@@ -71,10 +71,11 @@ export interface LLink {
   type: string;
 }
 
-/** Subgraph I/O node (uses bounding array format) */
+/** Subgraph I/O node (runtime format with pos/size like regular nodes) */
 export interface SubgraphIONode {
   id: number;
-  bounding: [x: number, y: number, width: number, height: number];
+  pos: [number, number];
+  size: [number, number];
 }
 
 /** LiteGraph Graph (or Subgraph with I/O nodes) */

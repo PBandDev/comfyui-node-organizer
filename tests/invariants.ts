@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import type { LGraph, LGraphNode, LGraphGroup, LLink } from "../src/layout/types";
-import { capturePositions, cloneGraph } from "./helpers";
+import type { LGraph, LGraphNode, LGraphGroup } from "../src/layout/types";
+import { capturePositions } from "./helpers";
 import { layoutGraph } from "../src/layout/index";
 
 /** Bounding box for collision detection */
@@ -51,31 +51,24 @@ function getAllEntities(graph: LGraph): BoundingBox[] {
     });
   }
 
-  // Include subgraph I/O nodes if present (runtime format: pos/size)
-  const graphAny = graph as Record<string, unknown>;
-  if (graphAny.inputNode && typeof graphAny.inputNode === "object") {
-    const io = graphAny.inputNode as { id: number; pos: [number, number]; size: [number, number] };
-    if (io.pos && io.size) {
-      entities.push({
-        id: `io_${io.id}`,
-        x: io.pos[0],
-        y: io.pos[1],
-        width: io.size[0],
-        height: io.size[1],
-      });
-    }
+  // Include subgraph I/O nodes if present
+  if (graph.inputNode?.pos && graph.inputNode?.size) {
+    entities.push({
+      id: `io_${graph.inputNode.id}`,
+      x: graph.inputNode.pos[0],
+      y: graph.inputNode.pos[1],
+      width: graph.inputNode.size[0],
+      height: graph.inputNode.size[1],
+    });
   }
-  if (graphAny.outputNode && typeof graphAny.outputNode === "object") {
-    const io = graphAny.outputNode as { id: number; pos: [number, number]; size: [number, number] };
-    if (io.pos && io.size) {
-      entities.push({
-        id: `io_${io.id}`,
-        x: io.pos[0],
-        y: io.pos[1],
-        width: io.size[0],
-        height: io.size[1],
-      });
-    }
+  if (graph.outputNode?.pos && graph.outputNode?.size) {
+    entities.push({
+      id: `io_${graph.outputNode.id}`,
+      x: graph.outputNode.pos[0],
+      y: graph.outputNode.pos[1],
+      width: graph.outputNode.size[0],
+      height: graph.outputNode.size[1],
+    });
   }
 
   return entities;
@@ -254,13 +247,14 @@ export function assertFiniteCoordinates(graph: LGraph): void {
   }
 
   // Check subgraph I/O nodes if present
-  const graphAny = graph as Record<string, unknown>;
-  for (const key of ["inputNode", "outputNode"]) {
-    const ioNode = graphAny[key] as { id: number; pos: [number, number] } | undefined;
-    if (ioNode?.pos) {
-      if (!Number.isFinite(ioNode.pos[0]) || !Number.isFinite(ioNode.pos[1])) {
-        errors.push(`I/O node ${ioNode.id} has non-finite position: [${ioNode.pos[0]}, ${ioNode.pos[1]}]`);
-      }
+  if (graph.inputNode?.pos) {
+    if (!Number.isFinite(graph.inputNode.pos[0]) || !Number.isFinite(graph.inputNode.pos[1])) {
+      errors.push(`I/O node ${graph.inputNode.id} has non-finite position: [${graph.inputNode.pos[0]}, ${graph.inputNode.pos[1]}]`);
+    }
+  }
+  if (graph.outputNode?.pos) {
+    if (!Number.isFinite(graph.outputNode.pos[0]) || !Number.isFinite(graph.outputNode.pos[1])) {
+      errors.push(`I/O node ${graph.outputNode.id} has non-finite position: [${graph.outputNode.pos[0]}, ${graph.outputNode.pos[1]}]`);
     }
   }
 
@@ -350,7 +344,7 @@ export function assertIdempotent(graph: LGraph): void {
  */
 export function assertGroupMembershipPreserved(
   originalGraph: LGraph,
-  layoutGraph: LGraph
+  layoutedGraph: LGraph
 ): void {
   const errors: string[] = [];
 
@@ -359,8 +353,8 @@ export function assertGroupMembershipPreserved(
 
   // For each node that was in a group, verify it's still in that group after layout
   for (const [nodeId, originalGroup] of beforeMembership) {
-    const node = layoutGraph._nodes.find((n) => n.id === nodeId);
-    const group = layoutGraph._groups.find((g) => g.id === originalGroup.id);
+    const node = layoutedGraph._nodes.find((n) => n.id === nodeId);
+    const group = layoutedGraph._groups.find((g) => g.id === originalGroup.id);
 
     if (!node || !group) continue;
 
