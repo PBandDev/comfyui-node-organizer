@@ -83,9 +83,7 @@ Use docs-mcp server for ComfyUI API reference.
 - `tests/integration/layout.test.ts` - Main regression tests
 
 **Known issues** (skipped tests, documented for future fixes):
-- `nested-groups.json`: node_15 overlaps group_3 after layout
 - `complex-parallel.json`: 22 entities move on second run (non-idempotent)
-- `nested-wrapper.json`: nodes overlap Group Wrapper
 
 **Coverage**: 70% line threshold, excludes `src/index.ts` (ComfyUI runtime) and `src/layout/reroute-collapse.ts` (no fixtures)
 

@@ -18,22 +18,16 @@ describe("layoutGraph regression tests", () => {
   // Fixtures that currently pass all tests
   const passingFixtures = [
     "simple-dag.json", // 7 nodes, no groups, basic txt2img DAG
+    "nested-groups.json", // Nested groups with node inside inner group
+    "nested-wrapper.json", // Group Wrapper containing nested groups
   ];
 
   // Fixtures with known issues (documented for future fixes)
-  // These use test.fails() to document expected failures
+  // These use test.skip() to document expected failures
   const knownIssueFixtures = [
-    {
-      name: "nested-groups.json",
-      issues: ["overlap"], // node_15 overlaps group_3 after layout
-    },
     {
       name: "complex-parallel.json",
       issues: ["idempotent"], // 22 entities move on second run (149px movements)
-    },
-    {
-      name: "nested-wrapper.json",
-      issues: ["overlap"], // Multiple nodes overlap Group Wrapper
     },
   ];
 

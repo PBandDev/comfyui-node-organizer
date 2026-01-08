@@ -100,11 +100,23 @@ function getNodesInsideGroups(graph: LGraph): Map<number, LGraphGroup> {
 }
 
 /**
+ * Check if a node bounding box is fully inside a group bounding box
+ */
+function isNodeInsideGroup(node: BoundingBox, group: BoundingBox): boolean {
+  return (
+    node.x >= group.x &&
+    node.y >= group.y &&
+    node.x + node.width <= group.x + group.width &&
+    node.y + node.height <= group.y + group.height
+  );
+}
+
+/**
  * Assert no two standalone entities overlap
- * Nodes inside groups are excluded from overlap checks with their containing group
+ * Nodes inside groups are excluded from overlap checks with their containing groups
+ * (including parent groups in nested group hierarchies)
  */
 export function assertNoOverlaps(graph: LGraph): void {
-  const nodeToGroup = getNodesInsideGroups(graph);
   const entities = getAllEntities(graph);
   const overlaps: string[] = [];
 
@@ -113,18 +125,13 @@ export function assertNoOverlaps(graph: LGraph): void {
       const a = entities[i];
       const b = entities[j];
 
-      // Skip node-vs-group overlap if node is inside that group
+      // Skip node-vs-group overlap if node is fully inside that group
+      // This handles nested groups: a node inside inner group is also inside outer group
       if (a.id.startsWith("node_") && b.id.startsWith("group_")) {
-        const nodeId = parseInt(a.id.replace("node_", ""), 10);
-        const groupId = parseInt(b.id.replace("group_", ""), 10);
-        const containingGroup = nodeToGroup.get(nodeId);
-        if (containingGroup && containingGroup.id === groupId) continue;
+        if (isNodeInsideGroup(a, b)) continue;
       }
       if (b.id.startsWith("node_") && a.id.startsWith("group_")) {
-        const nodeId = parseInt(b.id.replace("node_", ""), 10);
-        const groupId = parseInt(a.id.replace("group_", ""), 10);
-        const containingGroup = nodeToGroup.get(nodeId);
-        if (containingGroup && containingGroup.id === groupId) continue;
+        if (isNodeInsideGroup(b, a)) continue;
       }
 
       // Skip group-vs-group overlap if one contains the other (nested groups)
