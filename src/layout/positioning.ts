@@ -253,6 +253,16 @@ export function applyPositions(state: LayoutState): void {
     if (layoutNode.isSubgraphIO && layoutNode.runtimeIONode) {
       layoutNode.runtimeIONode.pos[0] = layoutNode.x;
       layoutNode.runtimeIONode.pos[1] = layoutNode.y;
+
+      // Sync allNodes entry for overlap resolution (ioNodeToLGraphNode creates a copy)
+      if (allNodes) {
+        const allNode = allNodes.get(layoutNode.id);
+        if (allNode?.pos) {
+          allNode.pos[0] = layoutNode.x;
+          allNode.pos[1] = layoutNode.y;
+        }
+      }
+
       debugLog(
         `Positioned I/O node id=${layoutNode.id} to [${layoutNode.x}, ${layoutNode.y}]`
       );
@@ -781,7 +791,7 @@ function applyFinalPositions(
  * Idempotent: decouples entity tracking from node.pos writes
  */
 export function resolveAllOverlaps(state: LayoutState): void {
-  const { allNodes, config } = state;
+  const { allNodes, nodes, config } = state;
   if (!allNodes) return;
 
   const entities = collectEntities(state);
@@ -798,6 +808,20 @@ export function resolveAllOverlaps(state: LayoutState): void {
 
   // Pass 3: Apply final positions to node.pos
   applyFinalPositions(entities, allNodes);
+
+  // Pass 4: Sync I/O node positions from allNodes back to runtimeIONode
+  // (applyFinalPositions updates allNodes[id].pos, but runtimeIONode.pos needs syncing)
+  if (nodes) {
+    for (const layoutNode of nodes.values()) {
+      if (layoutNode.isSubgraphIO && layoutNode.runtimeIONode) {
+        const allNode = allNodes.get(layoutNode.id);
+        if (allNode?.pos) {
+          layoutNode.runtimeIONode.pos[0] = allNode.pos[0];
+          layoutNode.runtimeIONode.pos[1] = allNode.pos[1];
+        }
+      }
+    }
+  }
 
   debugLog(`Overlap resolution: ${entities.length} entities processed`);
 }

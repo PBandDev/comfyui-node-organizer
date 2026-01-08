@@ -26,7 +26,7 @@ function boxesOverlap(a: BoundingBox, b: BoundingBox, gap = 0): boolean {
 }
 
 /**
- * Get all entities (nodes and groups) as bounding boxes
+ * Get all entities (nodes, groups, and I/O nodes) as bounding boxes
  */
 function getAllEntities(graph: LGraph): BoundingBox[] {
   const entities: BoundingBox[] = [];
@@ -49,6 +49,33 @@ function getAllEntities(graph: LGraph): BoundingBox[] {
       width: group.size[0],
       height: group.size[1],
     });
+  }
+
+  // Include subgraph I/O nodes if present (runtime format: pos/size)
+  const graphAny = graph as Record<string, unknown>;
+  if (graphAny.inputNode && typeof graphAny.inputNode === "object") {
+    const io = graphAny.inputNode as { id: number; pos: [number, number]; size: [number, number] };
+    if (io.pos && io.size) {
+      entities.push({
+        id: `io_${io.id}`,
+        x: io.pos[0],
+        y: io.pos[1],
+        width: io.size[0],
+        height: io.size[1],
+      });
+    }
+  }
+  if (graphAny.outputNode && typeof graphAny.outputNode === "object") {
+    const io = graphAny.outputNode as { id: number; pos: [number, number]; size: [number, number] };
+    if (io.pos && io.size) {
+      entities.push({
+        id: `io_${io.id}`,
+        x: io.pos[0],
+        y: io.pos[1],
+        width: io.size[0],
+        height: io.size[1],
+      });
+    }
   }
 
   return entities;
@@ -223,6 +250,17 @@ export function assertFiniteCoordinates(graph: LGraph): void {
     }
     if (!Number.isFinite(group.size[0]) || !Number.isFinite(group.size[1])) {
       errors.push(`Group ${group.id} has non-finite size: [${group.size[0]}, ${group.size[1]}]`);
+    }
+  }
+
+  // Check subgraph I/O nodes if present
+  const graphAny = graph as Record<string, unknown>;
+  for (const key of ["inputNode", "outputNode"]) {
+    const ioNode = graphAny[key] as { id: number; pos: [number, number] } | undefined;
+    if (ioNode?.pos) {
+      if (!Number.isFinite(ioNode.pos[0]) || !Number.isFinite(ioNode.pos[1])) {
+        errors.push(`I/O node ${ioNode.id} has non-finite position: [${ioNode.pos[0]}, ${ioNode.pos[1]}]`);
+      }
     }
   }
 

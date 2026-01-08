@@ -1,5 +1,5 @@
 import { describe, it, beforeEach, expect } from "vitest";
-import { loadFixture, cloneGraph } from "../helpers";
+import { loadFixture, loadSubgraphFixture, cloneGraph } from "../helpers";
 import { layoutGraph } from "../../src/layout/index";
 import {
   assertNoOverlaps,
@@ -36,6 +36,53 @@ describe("layoutGraph regression tests", () => {
       });
 
       it("has no overlapping entities", () => {
+        assertNoOverlaps(graph);
+      });
+
+      it("keeps nodes inside their groups", () => {
+        assertNodesInsideGroups(graph);
+      });
+
+      it("has finite coordinates", () => {
+        assertFiniteCoordinates(graph);
+      });
+
+      it("preserves topological order", () => {
+        assertTopologicalOrder(graph);
+      });
+
+      it("is idempotent (stable after multiple runs)", () => {
+        assertIdempotent(graph);
+      });
+
+      it("preserves group membership", () => {
+        assertGroupMembershipPreserved(originalGraph, graph);
+      });
+    });
+  }
+});
+
+/**
+ * Subgraph fixture tests (with I/O nodes)
+ * Uses loadSubgraphFixture to extract subgraph from workflow JSON
+ */
+describe("subgraph layout tests", () => {
+  const subgraphFixtures = [
+    "subgraph-io.json", // Subgraph with I/O nodes, 12 nodes, 4 groups
+  ];
+
+  for (const fixture of subgraphFixtures) {
+    describe(fixture, () => {
+      let graph: LGraph;
+      let originalGraph: LGraph;
+
+      beforeEach(() => {
+        graph = loadSubgraphFixture(fixture);
+        originalGraph = cloneGraph(graph);
+        layoutGraph(graph);
+      });
+
+      it("has no overlapping entities (including I/O nodes)", () => {
         assertNoOverlaps(graph);
       });
 
