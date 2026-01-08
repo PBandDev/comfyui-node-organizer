@@ -1,6 +1,7 @@
 node_modules/
 __pycache__/
-dist/ 
+dist/
+coverage/ 
 .DS_Store
 .env
 .env.local
