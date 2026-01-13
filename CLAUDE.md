@@ -56,6 +56,7 @@ Use docs-mcp server for ComfyUI API reference.
 7. `positioning.ts` - Assign coordinates, place disconnected nodes, restore reroutes
 8. `groups.ts` - Resize groups to fit members
 9. `layout-utils.ts` - Shared functions for internal edge detection and member layer assignment
+10. `selected-groups.ts` - Organize only selected groups independently
 
 **Configuration** in `types.ts`:
 - `maxColumns`: 0=auto, 1=vertical stack, 2+=fixed columns
@@ -69,6 +70,26 @@ Use docs-mcp server for ComfyUI API reference.
 - `resolveGroupOverlaps` detects and shifts overlapping groups using minimal direction (up/down/right)
 - `assignNodeYPositions` tracks reserved Y regions to prevent node/group overlap within layers
 - **Idempotency**: Layout is a pure function of topology + sizes; overlap resolution decoupled from node.pos writes
+
+## Selected Groups Layout
+
+`layoutSelectedGroups(graph, selectedGroupIds, config?)` in `src/layout/selected-groups.ts`:
+
+**Context menu items** (in `src/index.ts`):
+- "Organize Group" - when single group selected
+- "Organize N Groups" - when multiple groups selected
+
+**Behavior**:
+- Uses internal connections only (ignores external edges)
+- Disconnected nodes within group stacked vertically
+- Nested groups auto-included when parent selected
+- External overlaps acceptable (no resolution with non-selected nodes)
+- Groups resized to fit organized contents
+
+**Selection detection**:
+- Uses `app.canvas.selectedItems` (Set of Positionable)
+- Duck-typing via `isLGraphGroup()` checks for pos/size/title/id
+- Handles Float64Array (ComfyUI runtime uses typed arrays for pos/size)
 
 ## Testing
 
@@ -84,10 +105,11 @@ Use docs-mcp server for ComfyUI API reference.
   - `assertIdempotent` - stable after multiple runs
   - `assertGroupMembershipPreserved` - nodes originally in groups remain in groups
 - `tests/integration/layout.test.ts` - Main regression tests
+- `tests/integration/selected-groups.test.ts` - Selected groups layout tests (17 cases)
 
 **Coverage**: 70% line threshold, excludes `src/index.ts` (ComfyUI runtime) and `src/layout/reroute-collapse.ts` (no fixtures)
 
-All 4 fixtures pass all invariants including idempotency.
+All fixtures pass all invariants including idempotency. 50 total tests.
 
 ## CI/CD
 

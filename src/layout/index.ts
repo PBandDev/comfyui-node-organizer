@@ -99,5 +99,8 @@ export function layoutGraph(
 }
 
 // Re-export types and config
-export type { LayoutConfig, LayoutResult } from "./types";
+export type { LayoutConfig, LayoutResult, SelectedGroupLayoutResult } from "./types";
 export { DEFAULT_CONFIG } from "./types";
+
+// Export selected groups layout
+export { layoutSelectedGroups } from "./selected-groups";

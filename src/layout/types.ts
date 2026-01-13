@@ -262,3 +262,13 @@ export interface LayoutResult {
   /** Execution time in ms */
   executionMs: number;
 }
+
+/** Result from selected group layout */
+export interface SelectedGroupLayoutResult {
+  /** Number of nodes organized */
+  nodeCount: number;
+  /** Number of groups organized */
+  groupCount: number;
+  /** Execution time in ms */
+  executionMs: number;
+}
