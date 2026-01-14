@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, expect } from "vitest";
 import { loadFixture, capturePositions } from "../helpers";
 import { layoutSelectedGroups } from "../../src/layout/selected-groups";
+import { parseLayoutToken } from "../../src/layout/title-tokens";
 import {
   assertNodesInsideGroups,
   assertFiniteCoordinates,
@@ -402,6 +403,316 @@ describe("layoutSelectedGroups", () => {
       const node1 = graph._nodes.find((n) => n.id === 1)!;
       const node2 = graph._nodes.find((n) => n.id === 2)!;
       expect(node1.pos[0]).toBeLessThan(node2.pos[0]);
+
+      assertFiniteCoordinates(graph);
+    });
+  });
+
+  describe("parseLayoutToken", () => {
+    it("parses [HORIZONTAL] token", () => {
+      expect(parseLayoutToken("My Group [HORIZONTAL]")).toEqual({
+        type: "horizontal",
+      });
+    });
+
+    it("parses [VERTICAL] token", () => {
+      expect(parseLayoutToken("[VERTICAL] Group")).toEqual({ type: "vertical" });
+    });
+
+    it("parses [xROW] tokens", () => {
+      expect(parseLayoutToken("Group [2ROW]")).toEqual({ type: "rows", count: 2 });
+      expect(parseLayoutToken("[3ROW] Test")).toEqual({ type: "rows", count: 3 });
+    });
+
+    it("parses [xCOL] tokens", () => {
+      expect(parseLayoutToken("Group [2COL]")).toEqual({
+        type: "columns",
+        count: 2,
+      });
+      expect(parseLayoutToken("[4COL] Test")).toEqual({
+        type: "columns",
+        count: 4,
+      });
+    });
+
+    it("treats [1ROW] as horizontal", () => {
+      expect(parseLayoutToken("Group [1ROW]")).toEqual({ type: "horizontal" });
+    });
+
+    it("treats [1COL] as vertical", () => {
+      expect(parseLayoutToken("Group [1COL]")).toEqual({ type: "vertical" });
+    });
+
+    it("is case-insensitive", () => {
+      expect(parseLayoutToken("[horizontal]")).toEqual({ type: "horizontal" });
+      expect(parseLayoutToken("[Vertical]")).toEqual({ type: "vertical" });
+      expect(parseLayoutToken("[2row]")).toEqual({ type: "rows", count: 2 });
+      expect(parseLayoutToken("[3Col]")).toEqual({ type: "columns", count: 3 });
+    });
+
+    it("returns default for no token", () => {
+      expect(parseLayoutToken("Normal Group")).toEqual({ type: "default" });
+      expect(parseLayoutToken("")).toEqual({ type: "default" });
+    });
+
+    it("returns first matching token", () => {
+      // HORIZONTAL comes before xROW in parsing order
+      expect(parseLayoutToken("[HORIZONTAL] [2ROW]")).toEqual({
+        type: "horizontal",
+      });
+    });
+  });
+
+  describe("groups with layout tokens", () => {
+    function createTestGraph(groupTitle: string): LGraph {
+      return {
+        _nodes: [
+          {
+            id: 1,
+            type: "Note",
+            title: "Node 1",
+            pos: [100, 100],
+            size: [200, 100],
+            inputs: [],
+            outputs: [],
+          },
+          {
+            id: 2,
+            type: "Note",
+            title: "Node 2",
+            pos: [100, 250],
+            size: [200, 100],
+            inputs: [],
+            outputs: [],
+          },
+          {
+            id: 3,
+            type: "Note",
+            title: "Node 3",
+            pos: [100, 400],
+            size: [200, 100],
+            inputs: [],
+            outputs: [],
+          },
+          {
+            id: 4,
+            type: "Note",
+            title: "Node 4",
+            pos: [100, 550],
+            size: [200, 100],
+            inputs: [],
+            outputs: [],
+          },
+        ],
+        _groups: [
+          {
+            id: 1,
+            title: groupTitle,
+            pos: [50, 50],
+            size: [500, 700],
+          },
+        ],
+        links: new Map(),
+      };
+    }
+
+    it("[HORIZONTAL] arranges nodes in single row", () => {
+      const graph = createTestGraph("Test [HORIZONTAL]");
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // All nodes should have same Y (single row)
+      const ys = graph._nodes.map((n) => n.pos[1]);
+      expect(new Set(ys).size).toBe(1);
+
+      // Nodes should be spread horizontally
+      const xs = graph._nodes.map((n) => n.pos[0]).sort((a, b) => a - b);
+      expect(xs[3]).toBeGreaterThan(xs[0]);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("[VERTICAL] arranges nodes in single column", () => {
+      const graph = createTestGraph("Test [VERTICAL]");
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // All nodes should have same X (single column)
+      const xs = graph._nodes.map((n) => n.pos[0]);
+      expect(new Set(xs).size).toBe(1);
+
+      // Nodes should be spread vertically
+      const ys = graph._nodes.map((n) => n.pos[1]).sort((a, b) => a - b);
+      expect(ys[3]).toBeGreaterThan(ys[0]);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("[2ROW] distributes nodes into 2 rows", () => {
+      const graph = createTestGraph("Test [2ROW]");
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // Should have exactly 2 distinct Y values (2 rows)
+      const ys = new Set(graph._nodes.map((n) => n.pos[1]));
+      expect(ys.size).toBe(2);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("[3COL] distributes nodes into 3 columns", () => {
+      const graph = createTestGraph("Test [3COL]");
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // Should have 3 distinct X values (4 nodes into 3 cols = 2,1,1 distribution)
+      const xs = new Set(graph._nodes.map((n) => n.pos[0]));
+      expect(xs.size).toBe(3);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("lowercase token works", () => {
+      const graph = createTestGraph("Test [horizontal]");
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // All nodes should have same Y (single row)
+      const ys = graph._nodes.map((n) => n.pos[1]);
+      expect(new Set(ys).size).toBe(1);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("ignores DAG structure with token", () => {
+      // Create graph with connected nodes
+      const graph: LGraph = {
+        _nodes: [
+          {
+            id: 1,
+            type: "NodeA",
+            title: "Node A",
+            pos: [100, 100],
+            size: [200, 100],
+            inputs: [],
+            outputs: [{ name: "out", type: "FLOAT", links: [1] }],
+          },
+          {
+            id: 2,
+            type: "NodeB",
+            title: "Node B",
+            pos: [100, 300],
+            size: [200, 100],
+            inputs: [{ name: "in", type: "FLOAT", link: 1 }],
+            outputs: [],
+          },
+        ],
+        _groups: [
+          {
+            id: 1,
+            title: "Test [HORIZONTAL]",
+            pos: [50, 50],
+            size: [500, 400],
+          },
+        ],
+        links: new Map([
+          [
+            1,
+            {
+              id: 1,
+              origin_id: 1,
+              origin_slot: 0,
+              target_id: 2,
+              target_slot: 0,
+              type: "FLOAT",
+            },
+          ],
+        ]),
+      };
+
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // With [HORIZONTAL], both nodes should have same Y regardless of connection
+      const node1 = graph._nodes.find((n) => n.id === 1)!;
+      const node2 = graph._nodes.find((n) => n.id === 2)!;
+      expect(node1.pos[1]).toBe(node2.pos[1]);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("nested groups respect their own tokens", () => {
+      const graph: LGraph = {
+        _nodes: [
+          // Nodes in outer group (not in inner)
+          {
+            id: 1,
+            type: "Note",
+            title: "Outer 1",
+            pos: [100, 100],
+            size: [100, 100],
+            inputs: [],
+            outputs: [],
+          },
+          {
+            id: 2,
+            type: "Note",
+            title: "Outer 2",
+            pos: [100, 250],
+            size: [100, 100],
+            inputs: [],
+            outputs: [],
+          },
+          // Nodes in inner group
+          {
+            id: 3,
+            type: "Note",
+            title: "Inner 1",
+            pos: [350, 150],
+            size: [100, 100],
+            inputs: [],
+            outputs: [],
+          },
+          {
+            id: 4,
+            type: "Note",
+            title: "Inner 2",
+            pos: [350, 300],
+            size: [100, 100],
+            inputs: [],
+            outputs: [],
+          },
+        ],
+        _groups: [
+          {
+            id: 1,
+            title: "Outer [HORIZONTAL]",
+            pos: [50, 50],
+            size: [600, 500],
+          },
+          {
+            id: 2,
+            title: "Inner [VERTICAL]",
+            pos: [300, 100],
+            size: [200, 350],
+          },
+        ],
+        links: new Map(),
+      };
+
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // Inner group nodes should have same X (vertical)
+      const inner1 = graph._nodes.find((n) => n.id === 3)!;
+      const inner2 = graph._nodes.find((n) => n.id === 4)!;
+      expect(inner1.pos[0]).toBe(inner2.pos[0]);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("resizes group to fit token-arranged contents", () => {
+      const graph = createTestGraph("Test [HORIZONTAL]");
+      layoutSelectedGroups(graph, new Set([1]));
+
+      const group = graph._groups.find((g) => g.id === 1)!;
+
+      // Group should be wider than tall (horizontal layout)
+      // With 4 nodes of 200px width + gaps, width should be significant
+      expect(group.size[0]).toBeGreaterThan(600);
 
       assertFiniteCoordinates(graph);
     });

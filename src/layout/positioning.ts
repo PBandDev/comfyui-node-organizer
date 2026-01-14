@@ -22,6 +22,7 @@ import { packNodesIntoRows, getPackedWidth } from "./bin-pack";
 import { restoreReroutePositions } from "./reroute-collapse";
 import { getInternalEdges, assignMemberLayers } from "./layout-utils";
 import { debugLog } from "../debug";
+import { parseLayoutToken, arrangeByMode } from "./title-tokens";
 
 /** Title bar height for groups */
 const GROUP_TITLE_HEIGHT = 50;
@@ -374,14 +375,32 @@ function positionGroupContents(
     return startY;
   }
 
-  debugLog(`layoutGroupContents "${group.group.title}": startX=${startX}, members=${members.length}, childGroups=${group.childGroups.length}`);
+  // Parse layout token from group title
+  const layoutMode = parseLayoutToken(group.group.title);
 
-  // Get internal edges between members
-  const edges = getInternalEdges(group.memberIds, allNodes);
+  debugLog(`layoutGroupContents "${group.group.title}": startX=${startX}, members=${members.length}, childGroups=${group.childGroups.length}, mode=${layoutMode.type}`);
 
   let finalY = startY;
 
-  if (members.length > 0) {
+  // If layout mode is specified, use token-based layout (ignores internal edges)
+  if (layoutMode.type !== "default" && members.length > 0) {
+    const arranged = arrangeByMode(members, layoutMode, startX, startY, config);
+
+    for (const pos of arranged) {
+      const node = allNodes.get(pos.id);
+      if (node?.pos) {
+        node.pos[0] = pos.x;
+        node.pos[1] = pos.y;
+        debugLog(`  Member ${node.id} (${node.type}): token layout [${pos.x}, ${pos.y}]`);
+
+        const nh = node.size?.[1] ?? 100;
+        finalY = Math.max(finalY, pos.y + nh);
+      }
+    }
+  } else if (members.length > 0) {
+    // Default behavior: check internal edges for layer-based or bin pack layout
+    const edges = getInternalEdges(group.memberIds, allNodes);
+
     if (edges.length > 0) {
       // Has internal connections - use layer-based layout
       const layers = assignMemberLayers(group.memberIds, edges, allNodes);

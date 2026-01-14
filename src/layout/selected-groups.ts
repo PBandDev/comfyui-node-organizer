@@ -9,9 +9,84 @@ import { DEFAULT_CONFIG } from "./types";
 import { getInternalEdges, assignMemberLayers } from "./layout-utils";
 import { packNodesIntoRows } from "./bin-pack";
 import { debugLog } from "../debug";
+import { parseLayoutToken, arrangeByMode } from "./title-tokens";
 
 /** Title bar height for groups */
 const GROUP_TITLE_HEIGHT = 50;
+
+/**
+ * Resize a group to fit its member nodes
+ */
+function resizeGroupToFitMembers(
+  group: LGraphGroup,
+  memberIds: Set<number>,
+  allNodes: Map<number, LGraphNode>,
+  config: LayoutConfig
+): void {
+  if (memberIds.size === 0) return;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const nodeId of memberIds) {
+    const node = allNodes.get(nodeId);
+    if (!node?.pos) continue;
+    const nw = node.size?.[0] ?? 200;
+    const nh = node.size?.[1] ?? 100;
+    minX = Math.min(minX, node.pos[0]);
+    minY = Math.min(minY, node.pos[1]);
+    maxX = Math.max(maxX, node.pos[0] + nw);
+    maxY = Math.max(maxY, node.pos[1] + nh);
+  }
+
+  if (minX === Infinity) return;
+
+  // Update group position and size with padding
+  group.pos[0] = minX - config.groupPadding;
+  group.pos[1] = minY - config.groupPadding - GROUP_TITLE_HEIGHT;
+  group.size[0] = maxX - minX + config.groupPadding * 2;
+  group.size[1] = maxY - minY + config.groupPadding * 2 + GROUP_TITLE_HEIGHT;
+}
+
+/**
+ * Translate a group and its tracked members by a delta
+ */
+function translateGroupWithMembers(
+  group: LGraphGroup,
+  deltaX: number,
+  deltaY: number,
+  memberIds: Set<number>,
+  allNodes: Map<number, LGraphNode>,
+  allGroups: LGraphGroup[]
+): void {
+  // Move the group itself
+  if (Array.isArray(group.pos)) {
+    group.pos[0] += deltaX;
+    group.pos[1] += deltaY;
+  }
+
+  // Translate tracked member nodes
+  for (const nodeId of memberIds) {
+    const node = allNodes.get(nodeId);
+    if (node?.pos) {
+      node.pos[0] += deltaX;
+      node.pos[1] += deltaY;
+    }
+  }
+
+  // Find and translate nested groups inside this group
+  for (const nestedGroup of allGroups) {
+    if (nestedGroup === group) continue;
+    if (groupContainsGroup(group, nestedGroup)) {
+      if (Array.isArray(nestedGroup.pos)) {
+        nestedGroup.pos[0] += deltaX;
+        nestedGroup.pos[1] += deltaY;
+      }
+    }
+  }
+}
 
 /**
  * Check if outer group's bounds fully contain inner group's bounds
@@ -185,8 +260,11 @@ function layoutGroupContents(
     return null;
   }
 
+  // Parse layout token from group title
+  const layoutMode = parseLayoutToken(group.title);
+
   debugLog(
-    `layoutGroupContents "${group.title}": members=${members.length}, nestedGroups=${nestedGroups.length}`
+    `layoutGroupContents "${group.title}": members=${members.length}, nestedGroups=${nestedGroups.length}, mode=${layoutMode.type}`
   );
 
   // Get the group's current content area start position
@@ -199,12 +277,139 @@ function layoutGroupContents(
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  // Get internal edges between members
-  const edges = getInternalEdges(memberIds, allNodes);
-
   let contentEndY = startY;
 
-  if (members.length > 0) {
+  // If layout mode is specified, use token-based layout (ignores internal edges)
+  // This handles both direct member nodes AND nested groups as top-level items
+  if (layoutMode.type !== "default" && (members.length > 0 || nestedGroups.length > 0)) {
+    // First, recursively process nested groups (bottom-up) so their sizes are final
+    // Sort by containment depth (deepest first)
+    const sortedNested = [...nestedGroups].sort((a, b) => {
+      let aDepth = 0,
+        bDepth = 0;
+      for (const other of nestedGroups) {
+        if (other !== a && groupContainsGroup(other, a)) aDepth++;
+        if (other !== b && groupContainsGroup(other, b)) bDepth++;
+      }
+      return bDepth - aDepth; // Deepest first
+    });
+
+    // Track member IDs for each nested group (needed for translation later)
+    const nestedGroupMembers = new Map<number, Set<number>>();
+
+    for (const nested of sortedNested) {
+      if (processedGroups.has(nested)) continue;
+
+      const nestedMemberIds = new Set<number>();
+      for (const [nodeId, node] of allNodes) {
+        if (nodeInsideGroup(node, nested)) {
+          // Check not in deeper nested group
+          let inDeeperGroup = false;
+          for (const other of sortedNested) {
+            if (other !== nested && groupContainsGroup(nested, other) && nodeInsideGroup(node, other)) {
+              inDeeperGroup = true;
+              break;
+            }
+          }
+          if (!inDeeperGroup) {
+            nestedMemberIds.add(nodeId);
+          }
+        }
+      }
+      nestedGroupMembers.set(nested.id, nestedMemberIds);
+
+      const deeperNested = sortedNested.filter(
+        (g) => g !== nested && groupContainsGroup(nested, g)
+      );
+
+      layoutGroupContents(
+        nested,
+        nestedMemberIds,
+        deeperNested,
+        allNodes,
+        config,
+        processedGroups
+      );
+
+      // Resize nested group to fit its (possibly rearranged) contents
+      resizeGroupToFitMembers(nested, nestedMemberIds, allNodes, config);
+    }
+
+    // Now create combined items list: direct member nodes + direct nested groups
+    // Direct nested groups are those not contained by other nested groups
+    const directNestedGroups = nestedGroups.filter((g) => {
+      for (const other of nestedGroups) {
+        if (other !== g && groupContainsGroup(other, g)) return false;
+      }
+      return true;
+    });
+
+    // Create fake LGraphNode-like objects for nested groups so we can use arrangeByMode
+    const groupItems: LGraphNode[] = directNestedGroups.map((g) => ({
+      id: -g.id, // Negative ID to distinguish from real nodes
+      type: "__group__",
+      title: g.title,
+      pos: [g.pos[0], g.pos[1]] as [number, number],
+      size: [g.size[0], g.size[1]] as [number, number],
+      inputs: [],
+      outputs: [],
+    }));
+
+    // Combine members and group items
+    const allItems = [...members, ...groupItems];
+
+    if (allItems.length > 0) {
+      const arranged = arrangeByMode(allItems, layoutMode, startX, startY, config);
+
+      for (const pos of arranged) {
+        if (pos.id < 0) {
+          // This is a nested group (negative ID)
+          const groupId = -pos.id;
+          const nestedGroup = directNestedGroups.find((g) => g.id === groupId);
+          if (nestedGroup) {
+            const oldX = nestedGroup.pos[0];
+            const oldY = nestedGroup.pos[1];
+            const deltaX = pos.x - oldX;
+            const deltaY = pos.y - oldY;
+
+            // Use tracked members for accurate translation after token layout
+            const trackedMembers = nestedGroupMembers.get(groupId) ?? new Set();
+            translateGroupWithMembers(nestedGroup, deltaX, deltaY, trackedMembers, allNodes, nestedGroups);
+            debugLog(`  Nested group ${groupId} (${nestedGroup.title}): token layout [${pos.x}, ${pos.y}]`);
+
+            const gw = nestedGroup.size[0];
+            const gh = nestedGroup.size[1];
+
+            minX = Math.min(minX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxX = Math.max(maxX, pos.x + gw);
+            maxY = Math.max(maxY, pos.y + gh);
+            contentEndY = Math.max(contentEndY, pos.y + gh);
+          }
+        } else {
+          // This is a regular node
+          const node = allNodes.get(pos.id);
+          if (node?.pos) {
+            node.pos[0] = pos.x;
+            node.pos[1] = pos.y;
+            debugLog(`  Member ${node.id} (${node.type}): token layout [${pos.x}, ${pos.y}]`);
+
+            const nw = node.size?.[0] ?? 200;
+            const nh = node.size?.[1] ?? 100;
+
+            minX = Math.min(minX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxX = Math.max(maxX, pos.x + nw);
+            maxY = Math.max(maxY, pos.y + nh);
+            contentEndY = Math.max(contentEndY, pos.y + nh);
+          }
+        }
+      }
+    }
+  } else if (members.length > 0) {
+    // Default behavior: check internal edges for layer-based or vertical stack layout
+    const edges = getInternalEdges(memberIds, allNodes);
+
     if (edges.length > 0) {
       // Has internal connections - use layer-based layout
       const layers = assignMemberLayers(memberIds, edges, allNodes);

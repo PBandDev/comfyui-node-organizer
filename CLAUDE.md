@@ -57,6 +57,7 @@ Use docs-mcp server for ComfyUI API reference.
 8. `groups.ts` - Resize groups to fit members
 9. `layout-utils.ts` - Shared functions for internal edge detection and member layer assignment
 10. `selected-groups.ts` - Organize only selected groups independently
+11. `title-tokens.ts` - Parse group title tokens and arrange nodes by mode
 
 **Configuration** in `types.ts`:
 - `maxColumns`: 0=auto, 1=vertical stack, 2+=fixed columns
@@ -91,6 +92,29 @@ Use docs-mcp server for ComfyUI API reference.
 - Duck-typing via `isLGraphGroup()` checks for pos/size/title/id
 - Handles Float64Array (ComfyUI runtime uses typed arrays for pos/size)
 
+## Group Title Tokens
+
+`parseLayoutToken(title)` and `arrangeByMode()` in `src/layout/title-tokens.ts`:
+
+**Supported tokens** (case-insensitive):
+- `[HORIZONTAL]` - Single horizontal row
+- `[VERTICAL]` - Single vertical column
+- `[1-9ROW]` - Distribute into N rows (round-robin)
+- `[1-9COL]` - Distribute into N columns (round-robin)
+
+**Behavior**:
+- Tokens override default layout for direct group members
+- Ignores DAG structure when token present (treats all as disconnected)
+- `[1ROW]` = `[HORIZONTAL]`, `[1COL]` = `[VERTICAL]`
+- Nested groups each respect their own tokens
+- Groups without tokens use default behavior
+- Nodes sorted by original position (left-to-right, top-to-bottom) to preserve user intent
+
+**Integration points**:
+- `selected-groups.ts:layoutGroupContents()` - Token layout for "Organize Group"
+- `positioning.ts:positionGroupContents()` - Token layout for "Organize Workflow"
+- Both handle nested groups: process bottom-up first, then include as items in parent's token layout
+
 ## Testing
 
 **Vitest-based regression testing** in `tests/`:
@@ -105,11 +129,12 @@ Use docs-mcp server for ComfyUI API reference.
   - `assertIdempotent` - stable after multiple runs
   - `assertGroupMembershipPreserved` - nodes originally in groups remain in groups
 - `tests/integration/layout.test.ts` - Main regression tests
-- `tests/integration/selected-groups.test.ts` - Selected groups layout tests (17 cases)
+- `tests/integration/selected-groups.test.ts` - Selected groups layout tests (34 cases)
+- `tests/integration/token-layout.test.ts` - Token-based layout regression tests (8 cases)
 
 **Coverage**: 70% line threshold, excludes `src/index.ts` (ComfyUI runtime) and `src/layout/reroute-collapse.ts` (no fixtures)
 
-All fixtures pass all invariants including idempotency. 50 total tests.
+All fixtures pass all invariants including idempotency. 75 total tests.
 
 ## CI/CD
 
