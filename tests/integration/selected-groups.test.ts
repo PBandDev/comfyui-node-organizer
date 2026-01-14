@@ -718,6 +718,123 @@ describe("layoutSelectedGroups", () => {
     });
   });
 
+  describe("nested group + disconnected nodes overlap regression (group-test-simple.json)", () => {
+    it("positions nested groups below disconnected nodes (no token)", () => {
+      const graph = loadFixture("group-test-simple.json");
+      layoutSelectedGroups(graph, new Set([1])); // "Group Wrapper"
+
+      const innerGroup = graph._groups.find((g) => g.id === 2)!;
+      const node3 = graph._nodes.find((n) => n.id === 3)!;
+      const node4 = graph._nodes.find((n) => n.id === 4)!;
+
+      // Inner group should be BELOW the preview images
+      const node3Bottom = node3.pos[1] + node3.size[1];
+      const node4Bottom = node4.pos[1] + node4.size[1];
+      const membersBottom = Math.max(node3Bottom, node4Bottom);
+      expect(innerGroup.pos[1]).toBeGreaterThan(membersBottom);
+    });
+
+    it("maintains no overlaps after default layout", () => {
+      const graph = loadFixture("group-test-simple.json");
+      layoutSelectedGroups(graph, new Set([1]));
+      assertNodesInsideGroups(graph);
+      assertFiniteCoordinates(graph);
+    });
+
+    it("is idempotent with nested groups in default mode", () => {
+      const graph = loadFixture("group-test-simple.json");
+      layoutSelectedGroups(graph, new Set([1]));
+      const positions1 = capturePositions(graph);
+
+      layoutSelectedGroups(graph, new Set([1]));
+      const positions2 = capturePositions(graph);
+
+      // Compare positions with small tolerance
+      for (const [id, pos1] of positions1) {
+        const pos2 = positions2.get(id);
+        if (pos2) {
+          expect(Math.abs(pos1.x - pos2.x)).toBeLessThan(5);
+          expect(Math.abs(pos1.y - pos2.y)).toBeLessThan(5);
+        }
+      }
+    });
+
+    it("multiple sibling nested groups stack vertically", () => {
+      const graph: LGraph = {
+        _nodes: [
+          // Disconnected node in parent
+          {
+            id: 1,
+            type: "Note",
+            title: "Parent Node",
+            pos: [100, 100] as [number, number],
+            size: [200, 100] as [number, number],
+            inputs: [],
+            outputs: [],
+          },
+          // Node in first nested group
+          {
+            id: 2,
+            type: "Note",
+            title: "Nested 1 Node",
+            pos: [100, 300] as [number, number],
+            size: [200, 100] as [number, number],
+            inputs: [],
+            outputs: [],
+          },
+          // Node in second nested group
+          {
+            id: 3,
+            type: "Note",
+            title: "Nested 2 Node",
+            pos: [100, 500] as [number, number],
+            size: [200, 100] as [number, number],
+            inputs: [],
+            outputs: [],
+          },
+        ],
+        _groups: [
+          {
+            id: 1,
+            title: "Parent Group",
+            pos: [50, 50] as [number, number],
+            size: [400, 600] as [number, number],
+          },
+          {
+            id: 2,
+            title: "Nested 1",
+            pos: [80, 250] as [number, number],
+            size: [300, 180] as [number, number],
+          },
+          {
+            id: 3,
+            title: "Nested 2",
+            pos: [80, 450] as [number, number],
+            size: [300, 180] as [number, number],
+          },
+        ],
+        links: new Map(),
+      };
+
+      layoutSelectedGroups(graph, new Set([1]));
+
+      const nested1 = graph._groups.find((g) => g.id === 2)!;
+      const nested2 = graph._groups.find((g) => g.id === 3)!;
+      const parentNode = graph._nodes.find((n) => n.id === 1)!;
+
+      // Both nested groups should be below the parent node
+      const parentNodeBottom = parentNode.pos[1] + parentNode.size[1];
+      expect(nested1.pos[1]).toBeGreaterThan(parentNodeBottom);
+      expect(nested2.pos[1]).toBeGreaterThan(parentNodeBottom);
+
+      // Nested groups should not overlap each other
+      const nested1Bottom = nested1.pos[1] + nested1.size[1];
+      expect(nested2.pos[1]).toBeGreaterThanOrEqual(nested1Bottom);
+
+      assertFiniteCoordinates(graph);
+    });
+  });
+
   describe("nested group position update regression (group-test.json)", () => {
     it("nested group position updates when parent has token layout", () => {
       const graph = loadFixture("group-test.json");
