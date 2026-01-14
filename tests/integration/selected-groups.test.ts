@@ -717,4 +717,98 @@ describe("layoutSelectedGroups", () => {
       assertFiniteCoordinates(graph);
     });
   });
+
+  describe("nested group position update regression (group-test.json)", () => {
+    it("nested group position updates when parent has token layout", () => {
+      const graph = loadFixture("group-test.json");
+
+      // Group 1 "Previews [2ROW]" contains nested Group 3 "Preview Nodes [HORIZONTAL]"
+      // Nodes 3, 4 are inside Group 3
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // Group 3 should be repositioned to contain its member nodes
+      const group3 = graph._groups.find((g) => g.id === 3)!;
+      const node3 = graph._nodes.find((n) => n.id === 3)!;
+      const node4 = graph._nodes.find((n) => n.id === 4)!;
+
+      // Nodes must be inside group bounds (x >= group.x, y >= group.y + title_height)
+      const GROUP_TITLE_HEIGHT = 50;
+      expect(node3.pos[0]).toBeGreaterThanOrEqual(group3.pos[0]);
+      expect(node3.pos[1]).toBeGreaterThanOrEqual(group3.pos[1] + GROUP_TITLE_HEIGHT);
+      expect(node4.pos[0]).toBeGreaterThanOrEqual(group3.pos[0]);
+      expect(node4.pos[1]).toBeGreaterThanOrEqual(group3.pos[1] + GROUP_TITLE_HEIGHT);
+
+      // Nodes must be inside group bounds (right/bottom edges)
+      expect(node3.pos[0] + node3.size[0]).toBeLessThanOrEqual(group3.pos[0] + group3.size[0]);
+      expect(node3.pos[1] + node3.size[1]).toBeLessThanOrEqual(group3.pos[1] + group3.size[1]);
+      expect(node4.pos[0] + node4.size[0]).toBeLessThanOrEqual(group3.pos[0] + group3.size[0]);
+      expect(node4.pos[1] + node4.size[1]).toBeLessThanOrEqual(group3.pos[1] + group3.size[1]);
+
+      assertFiniteCoordinates(graph);
+    });
+
+    it("maintains node-group containment after [2ROW] token layout", () => {
+      const graph = loadFixture("group-test.json");
+      layoutSelectedGroups(graph, new Set([1]));
+      assertNodesInsideGroups(graph);
+      assertFiniteCoordinates(graph);
+    });
+
+    it("updates bounding array when translating nested group", () => {
+      // Simulate production environment where groups have bounding array
+      const graph: LGraph = {
+        _nodes: [
+          {
+            id: 1,
+            type: "Note",
+            title: "Note 1",
+            pos: [180, 180] as [number, number],
+            size: [200, 100] as [number, number],
+            inputs: [],
+            outputs: [],
+          },
+          {
+            id: 2,
+            type: "Note",
+            title: "Note 2",
+            pos: [500, 180] as [number, number],
+            size: [200, 100] as [number, number],
+            inputs: [],
+            outputs: [],
+          },
+        ],
+        _groups: [
+          {
+            id: 1,
+            title: "Outer [HORIZONTAL]",
+            pos: [100, 50] as [number, number],
+            size: [700, 300] as [number, number],
+          },
+          {
+            id: 2,
+            title: "Inner Group",
+            pos: [450, 130] as [number, number],
+            size: [300, 200] as [number, number],
+          },
+        ],
+        links: new Map(),
+      };
+
+      // Add bounding arrays to simulate ComfyUI runtime format
+      const group1 = graph._groups[0] as typeof graph._groups[0] & { bounding: number[] };
+      const group2 = graph._groups[1] as typeof graph._groups[1] & { bounding: number[] };
+      group1.bounding = [100, 50, 700, 300];
+      group2.bounding = [450, 130, 300, 200];
+
+      layoutSelectedGroups(graph, new Set([1]));
+
+      // After layout, bounding should be updated to match pos
+      expect(group2.bounding[0]).toBe(group2.pos[0]);
+      expect(group2.bounding[1]).toBe(group2.pos[1]);
+      expect(group2.bounding[2]).toBe(group2.size[0]);
+      expect(group2.bounding[3]).toBe(group2.size[1]);
+
+      assertFiniteCoordinates(graph);
+    });
+  });
 });

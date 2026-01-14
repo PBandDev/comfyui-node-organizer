@@ -15,6 +15,97 @@ import { parseLayoutToken, arrangeByMode } from "./title-tokens";
 const GROUP_TITLE_HEIGHT = 50;
 
 /**
+ * Update group bounds using multiple methods for compatibility
+ * Handles pos/size arrays, _pos/_size internal properties,
+ * _bounding Rectangle, and bounding array formats
+ */
+function updateGroupBounds(
+  group: LGraphGroup,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  // Method 1: Direct pos/size array mutation
+  if (Array.isArray(group.pos)) {
+    group.pos[0] = x;
+    group.pos[1] = y;
+  }
+  if (Array.isArray(group.size)) {
+    group.size[0] = width;
+    group.size[1] = height;
+  }
+
+  // Method 2: Try _pos/_size internal properties
+  const g = group as LGraphGroup & {
+    _pos?: [number, number];
+    _size?: [number, number];
+  };
+  if (Array.isArray(g._pos)) {
+    g._pos[0] = x;
+    g._pos[1] = y;
+  }
+  if (Array.isArray(g._size)) {
+    g._size[0] = width;
+    g._size[1] = height;
+  }
+
+  // Method 3: Update _bounding Rectangle if present
+  if (group._bounding) {
+    const b = group._bounding;
+    b.x = x;
+    b.y = y;
+    b.width = width;
+    b.height = height;
+  }
+
+  // Method 4: Try bounding array (older format / JSON serialization)
+  const gAny = group as LGraphGroup & { bounding?: number[] };
+  if (Array.isArray(gAny.bounding)) {
+    gAny.bounding[0] = x;
+    gAny.bounding[1] = y;
+    gAny.bounding[2] = width;
+    gAny.bounding[3] = height;
+  }
+}
+
+/**
+ * Translate group position by delta, handling all position formats
+ * Similar to updateGroupBounds but for relative position changes
+ */
+function translateGroupPosition(
+  group: LGraphGroup,
+  deltaX: number,
+  deltaY: number
+): void {
+  // Method 1: Direct pos array mutation
+  if (Array.isArray(group.pos)) {
+    group.pos[0] += deltaX;
+    group.pos[1] += deltaY;
+  }
+
+  // Method 2: Try _pos internal property
+  const g = group as LGraphGroup & { _pos?: [number, number] };
+  if (Array.isArray(g._pos)) {
+    g._pos[0] += deltaX;
+    g._pos[1] += deltaY;
+  }
+
+  // Method 3: Update _bounding Rectangle if present
+  if (group._bounding) {
+    group._bounding.x += deltaX;
+    group._bounding.y += deltaY;
+  }
+
+  // Method 4: Try bounding array (older format / JSON serialization)
+  const gAny = group as LGraphGroup & { bounding?: number[] };
+  if (Array.isArray(gAny.bounding)) {
+    gAny.bounding[0] += deltaX;
+    gAny.bounding[1] += deltaY;
+  }
+}
+
+/**
  * Resize a group to fit its member nodes
  */
 function resizeGroupToFitMembers(
@@ -43,11 +134,12 @@ function resizeGroupToFitMembers(
 
   if (minX === Infinity) return;
 
-  // Update group position and size with padding
-  group.pos[0] = minX - config.groupPadding;
-  group.pos[1] = minY - config.groupPadding - GROUP_TITLE_HEIGHT;
-  group.size[0] = maxX - minX + config.groupPadding * 2;
-  group.size[1] = maxY - minY + config.groupPadding * 2 + GROUP_TITLE_HEIGHT;
+  // Update group position and size with padding (handles all formats)
+  const newX = minX - config.groupPadding;
+  const newY = minY - config.groupPadding - GROUP_TITLE_HEIGHT;
+  const newW = maxX - minX + config.groupPadding * 2;
+  const newH = maxY - minY + config.groupPadding * 2 + GROUP_TITLE_HEIGHT;
+  updateGroupBounds(group, newX, newY, newW, newH);
 }
 
 /**
@@ -61,11 +153,8 @@ function translateGroupWithMembers(
   allNodes: Map<number, LGraphNode>,
   allGroups: LGraphGroup[]
 ): void {
-  // Move the group itself
-  if (Array.isArray(group.pos)) {
-    group.pos[0] += deltaX;
-    group.pos[1] += deltaY;
-  }
+  // Move the group itself (handles all formats: pos, _pos, _bounding, bounding)
+  translateGroupPosition(group, deltaX, deltaY);
 
   // Translate tracked member nodes
   for (const nodeId of memberIds) {
@@ -80,10 +169,7 @@ function translateGroupWithMembers(
   for (const nestedGroup of allGroups) {
     if (nestedGroup === group) continue;
     if (groupContainsGroup(group, nestedGroup)) {
-      if (Array.isArray(nestedGroup.pos)) {
-        nestedGroup.pos[0] += deltaX;
-        nestedGroup.pos[1] += deltaY;
-      }
+      translateGroupPosition(nestedGroup, deltaX, deltaY);
     }
   }
 }
@@ -172,59 +258,6 @@ function collectDirectMembers(
   }
 
   return members;
-}
-
-/**
- * Update group bounds using multiple methods for compatibility
- */
-function updateGroupBounds(
-  group: LGraphGroup,
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): void {
-  // Method 1: Direct pos/size array mutation
-  if (Array.isArray(group.pos)) {
-    group.pos[0] = x;
-    group.pos[1] = y;
-  }
-  if (Array.isArray(group.size)) {
-    group.size[0] = width;
-    group.size[1] = height;
-  }
-
-  // Method 2: Try _pos/_size internal properties
-  const g = group as LGraphGroup & {
-    _pos?: [number, number];
-    _size?: [number, number];
-  };
-  if (Array.isArray(g._pos)) {
-    g._pos[0] = x;
-    g._pos[1] = y;
-  }
-  if (Array.isArray(g._size)) {
-    g._size[0] = width;
-    g._size[1] = height;
-  }
-
-  // Method 3: Update _bounding Rectangle if present
-  if (group._bounding) {
-    const b = group._bounding;
-    b.x = x;
-    b.y = y;
-    b.width = width;
-    b.height = height;
-  }
-
-  // Method 4: Try bounding array (older format)
-  const gAny = group as LGraphGroup & { bounding?: number[] };
-  if (Array.isArray(gAny.bounding)) {
-    gAny.bounding[0] = x;
-    gAny.bounding[1] = y;
-    gAny.bounding[2] = width;
-    gAny.bounding[3] = height;
-  }
 }
 
 /**
