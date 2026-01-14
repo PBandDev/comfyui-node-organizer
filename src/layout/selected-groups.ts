@@ -15,6 +15,97 @@ import { parseLayoutToken, arrangeByMode } from "./title-tokens";
 const GROUP_TITLE_HEIGHT = 50;
 
 /**
+ * Update group bounds using multiple methods for compatibility
+ * Handles pos/size arrays, _pos/_size internal properties,
+ * _bounding Rectangle, and bounding array formats
+ */
+function updateGroupBounds(
+  group: LGraphGroup,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  // Method 1: Direct pos/size array mutation
+  if (Array.isArray(group.pos)) {
+    group.pos[0] = x;
+    group.pos[1] = y;
+  }
+  if (Array.isArray(group.size)) {
+    group.size[0] = width;
+    group.size[1] = height;
+  }
+
+  // Method 2: Try _pos/_size internal properties
+  const g = group as LGraphGroup & {
+    _pos?: [number, number];
+    _size?: [number, number];
+  };
+  if (Array.isArray(g._pos)) {
+    g._pos[0] = x;
+    g._pos[1] = y;
+  }
+  if (Array.isArray(g._size)) {
+    g._size[0] = width;
+    g._size[1] = height;
+  }
+
+  // Method 3: Update _bounding Rectangle if present
+  if (group._bounding) {
+    const b = group._bounding;
+    b.x = x;
+    b.y = y;
+    b.width = width;
+    b.height = height;
+  }
+
+  // Method 4: Try bounding array (older format / JSON serialization)
+  const gAny = group as LGraphGroup & { bounding?: number[] };
+  if (Array.isArray(gAny.bounding)) {
+    gAny.bounding[0] = x;
+    gAny.bounding[1] = y;
+    gAny.bounding[2] = width;
+    gAny.bounding[3] = height;
+  }
+}
+
+/**
+ * Translate group position by delta, handling all position formats
+ * Similar to updateGroupBounds but for relative position changes
+ */
+function translateGroupPosition(
+  group: LGraphGroup,
+  deltaX: number,
+  deltaY: number
+): void {
+  // Method 1: Direct pos array mutation
+  if (Array.isArray(group.pos)) {
+    group.pos[0] += deltaX;
+    group.pos[1] += deltaY;
+  }
+
+  // Method 2: Try _pos internal property
+  const g = group as LGraphGroup & { _pos?: [number, number] };
+  if (Array.isArray(g._pos)) {
+    g._pos[0] += deltaX;
+    g._pos[1] += deltaY;
+  }
+
+  // Method 3: Update _bounding Rectangle if present
+  if (group._bounding) {
+    group._bounding.x += deltaX;
+    group._bounding.y += deltaY;
+  }
+
+  // Method 4: Try bounding array (older format / JSON serialization)
+  const gAny = group as LGraphGroup & { bounding?: number[] };
+  if (Array.isArray(gAny.bounding)) {
+    gAny.bounding[0] += deltaX;
+    gAny.bounding[1] += deltaY;
+  }
+}
+
+/**
  * Resize a group to fit its member nodes
  */
 function resizeGroupToFitMembers(
@@ -43,11 +134,12 @@ function resizeGroupToFitMembers(
 
   if (minX === Infinity) return;
 
-  // Update group position and size with padding
-  group.pos[0] = minX - config.groupPadding;
-  group.pos[1] = minY - config.groupPadding - GROUP_TITLE_HEIGHT;
-  group.size[0] = maxX - minX + config.groupPadding * 2;
-  group.size[1] = maxY - minY + config.groupPadding * 2 + GROUP_TITLE_HEIGHT;
+  // Update group position and size with padding (handles all formats)
+  const newX = minX - config.groupPadding;
+  const newY = minY - config.groupPadding - GROUP_TITLE_HEIGHT;
+  const newW = maxX - minX + config.groupPadding * 2;
+  const newH = maxY - minY + config.groupPadding * 2 + GROUP_TITLE_HEIGHT;
+  updateGroupBounds(group, newX, newY, newW, newH);
 }
 
 /**
@@ -61,11 +153,8 @@ function translateGroupWithMembers(
   allNodes: Map<number, LGraphNode>,
   allGroups: LGraphGroup[]
 ): void {
-  // Move the group itself
-  if (Array.isArray(group.pos)) {
-    group.pos[0] += deltaX;
-    group.pos[1] += deltaY;
-  }
+  // Move the group itself (handles all formats: pos, _pos, _bounding, bounding)
+  translateGroupPosition(group, deltaX, deltaY);
 
   // Translate tracked member nodes
   for (const nodeId of memberIds) {
@@ -80,10 +169,7 @@ function translateGroupWithMembers(
   for (const nestedGroup of allGroups) {
     if (nestedGroup === group) continue;
     if (groupContainsGroup(group, nestedGroup)) {
-      if (Array.isArray(nestedGroup.pos)) {
-        nestedGroup.pos[0] += deltaX;
-        nestedGroup.pos[1] += deltaY;
-      }
+      translateGroupPosition(nestedGroup, deltaX, deltaY);
     }
   }
 }
@@ -172,59 +258,6 @@ function collectDirectMembers(
   }
 
   return members;
-}
-
-/**
- * Update group bounds using multiple methods for compatibility
- */
-function updateGroupBounds(
-  group: LGraphGroup,
-  x: number,
-  y: number,
-  width: number,
-  height: number
-): void {
-  // Method 1: Direct pos/size array mutation
-  if (Array.isArray(group.pos)) {
-    group.pos[0] = x;
-    group.pos[1] = y;
-  }
-  if (Array.isArray(group.size)) {
-    group.size[0] = width;
-    group.size[1] = height;
-  }
-
-  // Method 2: Try _pos/_size internal properties
-  const g = group as LGraphGroup & {
-    _pos?: [number, number];
-    _size?: [number, number];
-  };
-  if (Array.isArray(g._pos)) {
-    g._pos[0] = x;
-    g._pos[1] = y;
-  }
-  if (Array.isArray(g._size)) {
-    g._size[0] = width;
-    g._size[1] = height;
-  }
-
-  // Method 3: Update _bounding Rectangle if present
-  if (group._bounding) {
-    const b = group._bounding;
-    b.x = x;
-    b.y = y;
-    b.width = width;
-    b.height = height;
-  }
-
-  // Method 4: Try bounding array (older format)
-  const gAny = group as LGraphGroup & { bounding?: number[] };
-  if (Array.isArray(gAny.bounding)) {
-    gAny.bounding[0] = x;
-    gAny.bounding[1] = y;
-    gAny.bounding[2] = width;
-    gAny.bounding[3] = height;
-  }
 }
 
 /**
@@ -495,7 +528,7 @@ function layoutGroupContents(
   }
 
   // Process nested groups (bottom-up: deepest first)
-  // Sort by containment depth
+  // In default mode, reposition direct nested groups below member content
   const sortedNested = [...nestedGroups].sort((a, b) => {
     // Count how many other nested groups contain each
     let depthA = 0;
@@ -507,13 +540,52 @@ function layoutGroupContents(
     return depthB - depthA; // Deepest first
   });
 
-  for (const nestedGroup of sortedNested) {
-    // Get direct members of nested group
+  // Identify direct nested groups (not contained by other nested groups)
+  const directNestedGroups = sortedNested.filter((g) => {
+    for (const other of nestedGroups) {
+      if (other !== g && groupContainsGroup(other, g)) return false;
+    }
+    return true;
+  });
+
+  // Sort direct groups by original position for stable ordering
+  directNestedGroups.sort((a, b) => {
+    const yDiff = a.pos[1] - b.pos[1];
+    return yDiff !== 0 ? yDiff : a.pos[0] - b.pos[0];
+  });
+
+  for (const nestedGroup of directNestedGroups) {
+    // Skip if already processed (by token mode)
+    if (processedGroups.has(nestedGroup)) {
+      // Still include bounds
+      minX = Math.min(minX, nestedGroup.pos[0]);
+      minY = Math.min(minY, nestedGroup.pos[1]);
+      maxX = Math.max(maxX, nestedGroup.pos[0] + nestedGroup.size[0]);
+      maxY = Math.max(maxY, nestedGroup.pos[1] + nestedGroup.size[1]);
+      continue;
+    }
+
+    // Get nested group's members and children
     const nestedChildren = collectNestedGroups(nestedGroup, nestedGroups);
     const nestedMembers = collectDirectMembers(nestedGroup, allNodes, nestedChildren);
 
-    // Recursively layout nested group
-    const nestedBounds = layoutGroupContents(
+    // In default mode, reposition nested group below current content
+    if (layoutMode.type === "default") {
+      // Position nested group's left edge at startX (same as members) for consistent alignment
+      // This prevents the group from shifting leftward on each layout run
+      const targetX = startX;
+      const targetY = contentEndY + config.verticalGap;
+      const deltaX = targetX - nestedGroup.pos[0];
+      const deltaY = targetY - nestedGroup.pos[1];
+
+      if (deltaX !== 0 || deltaY !== 0) {
+        translateGroupWithMembers(nestedGroup, deltaX, deltaY, nestedMembers, allNodes, nestedGroups);
+        debugLog(`  Repositioned nested group "${nestedGroup.title}" to [${targetX}, ${targetY}]`);
+      }
+    }
+
+    // Recursively layout nested group contents
+    layoutGroupContents(
       nestedGroup,
       nestedMembers,
       nestedChildren,
@@ -522,24 +594,17 @@ function layoutGroupContents(
       processedGroups
     );
 
-    if (nestedBounds) {
-      // Update bounds to include nested group
-      minX = Math.min(minX, nestedBounds.minX - config.groupPadding);
-      minY = Math.min(minY, nestedBounds.minY - config.groupPadding - GROUP_TITLE_HEIGHT);
-      maxX = Math.max(maxX, nestedBounds.maxX + config.groupPadding);
-      maxY = Math.max(maxY, nestedBounds.maxY + config.groupPadding);
-    } else {
-      // Include nested group's current bounds
-      const nx = nestedGroup.pos[0];
-      const ny = nestedGroup.pos[1];
-      const nw = nestedGroup.size[0];
-      const nh = nestedGroup.size[1];
+    // Resize nested group to fit its organized contents
+    resizeGroupToFitMembers(nestedGroup, nestedMembers, allNodes, config);
 
-      minX = Math.min(minX, nx);
-      minY = Math.min(minY, ny);
-      maxX = Math.max(maxX, nx + nw);
-      maxY = Math.max(maxY, ny + nh);
-    }
+    // Update contentEndY for next nested group
+    contentEndY = Math.max(contentEndY, nestedGroup.pos[1] + nestedGroup.size[1]);
+
+    // Update bounds to include nested group
+    minX = Math.min(minX, nestedGroup.pos[0]);
+    minY = Math.min(minY, nestedGroup.pos[1]);
+    maxX = Math.max(maxX, nestedGroup.pos[0] + nestedGroup.size[0]);
+    maxY = Math.max(maxY, nestedGroup.pos[1] + nestedGroup.size[1]);
   }
 
   // Resize group to fit contents
