@@ -53,3 +53,7 @@ Add tokens to group titles to control how nodes are arranged:
 - **Group Support**: Nested groups with proper hierarchy
 - **Group Layout Tokens**: Control layout with title tokens (see below)
 - **Subgraph Support**: Works inside subgraphs with I/O node handling
+
+## Known Limitations
+
+This extension has not been thoroughly tested with very large or complex workflows. If you encounter issues, please [open a GitHub issue](https://github.com/PBandDev/comfyui-node-organizer/issues) with a **minimal reproducible workflow** attached.
