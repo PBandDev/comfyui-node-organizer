@@ -2,21 +2,26 @@
 
 Automatically organizes nodes in your workflow using a compact hierarchical layout.
 
-## Features
+### Preview of organizing a workflow
 
-- **Execution Order Layout**: Nodes arranged left-to-right following data flow
-- **Compact Bin Packing**: Reduces vertical height by packing nodes into rows
-- **Disconnected Node Handling**: Annotations, bookmarks placed in separate left margin
-- **Reroute Optimization**: Reroute chains collapsed and restored along edges
-- **Group Support**: Nested groups with proper hierarchy
-- **Group Layout Tokens**: Control layout with title tokens (see below)
-- **Subgraph Support**: Works inside subgraphs with I/O node handling
+<img src="assets/preview.gif" alt="User clicking on the Organize Workflow context menu item" loop=infinite>
+
+### Preview of organizing groups with tokens
+
+<img src="assets/preview-tokens.gif" alt="User clicking on different groups and seeing the nodes arranged according to the tokens" loop=infinite>
+
+## Installation
+
+1. Open **ComfyUI**
+2. Go to **Manager > Custom Node Manager**
+3. Search for `Node Organizer`
+4. Click **Install**
 
 ## Usage
 
 Right-click on the canvas and select **Organize Workflow**.
 
-To organize specific groups, select them and choose **Organize Group** or **Organize N Groups**.
+To organize specific groups, select them and choose **Organize Group**.
 
 ## Group Layout Tokens
 
@@ -39,11 +44,12 @@ Add tokens to group titles to control how nodes are arranged:
 - Nested groups each respect their own tokens
 - Groups without tokens use default DAG-based layout
 
----
+## Features
 
-## Installation
-
-1. Open **ComfyUI**
-2. Go to **Manager > Custom Node Manager**
-3. Search for `Node Organizer`
-4. Click **Install**
+- **Execution Order Layout**: Nodes arranged left-to-right following data flow
+- **Compact Bin Packing**: Reduces vertical height by packing nodes into rows
+- **Disconnected Node Handling**: Annotations, bookmarks placed in separate left margin
+- **Reroute Optimization**: Reroute chains collapsed and restored along edges
+- **Group Support**: Nested groups with proper hierarchy
+- **Group Layout Tokens**: Control layout with title tokens (see below)
+- **Subgraph Support**: Works inside subgraphs with I/O node handling
