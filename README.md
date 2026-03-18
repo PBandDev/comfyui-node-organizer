@@ -1,6 +1,6 @@
 # ComfyUI Node Organizer
 
-Automatically organizes nodes in your workflow using a compact hierarchical layout.
+Automatically organizes nodes in your workflow using a compact hierarchical layout. Created with [comfyui-custom-node-template](https://github.com/PBandDev/comfyui-custom-node-template)
 
 ### Preview of organizing a workflow
 
