@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "comfyui-nodes-dev": {
+      "source": "jimlee2048/skills",
+      "sourceType": "github",
+      "computedHash": "80f0435fb9fc11de834cb52eee28cfe96977b99aac5b4c8fac48d16203dea8d4"
+    }
+  }
+}
