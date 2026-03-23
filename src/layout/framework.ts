@@ -1,7 +1,7 @@
 /**
  * Core layout framework — recursive group-aware layout orchestration.
  *
- * This is the architectural foundation of v2. It handles:
+ * This is the architectural foundation of the current layout system. It handles:
  * - Bottom-up group hierarchy processing
  * - Delegating to a pluggable LayoutAlgorithm
  * - Disconnected node placement (left of DAG at each level)
