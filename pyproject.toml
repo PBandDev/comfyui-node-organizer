@@ -2,8 +2,14 @@
 name = "comfyui-node-organizer"
 description = "ComfyUI extension to organize nodes"
 version = "1.3.0"
+requires-python = ">=3.13"
 readme = "README.md"
 license = { file = "LICENSE" }
+
+[dependency-groups]
+dev = [
+  "bump-my-version>=1.2.2",
+]
 
 [project.urls]
 Repository = "https://github.com/PBandDev/comfyui-node-organizer"
@@ -19,8 +25,8 @@ includes = ['dist/']
 current_version = "1.3.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
-commit = true
-tag = true
+commit = false
+tag = false
 tag_name = "v{new_version}"
 tag_message = "Release version {new_version}"
 message = "chore: bump version to {new_version} [skip ci]"
@@ -36,6 +42,6 @@ search = '"version": "{current_version}"'
 replace = '"version": "{new_version}"'
 
 [[tool.bumpversion.files]]
-filename = "src/index.ts"
-search = 'Version {current_version}'
-replace = 'Version {new_version}'
+filename = "src/settings.ts"
+search = 'export const CURRENT_VERSION = "{current_version}";'
+replace = 'export const CURRENT_VERSION = "{new_version}";'

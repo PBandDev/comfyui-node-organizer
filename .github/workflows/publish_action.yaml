@@ -17,40 +17,64 @@ jobs:
   test:
     name: Test before publish
     runs-on: ubuntu-latest
-    if: github.actor == github.repository_owner
-    strategy:
-      matrix:
-        node-version: [20]
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Use Python from .python-version
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install
 
+      - name: Sync Python dependencies
+        run: uv sync --locked --group dev
+
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Run tests
+      - name: Run unit tests
         run: pnpm test
 
       - name: Build
         run: pnpm build
 
+      - name: Install Playwright browsers
+        run: pnpx playwright install chromium --with-deps
+
+      - name: Setup test ComfyUI
+        run: pnpm setup:e2e
+        timeout-minutes: 15
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        timeout-minutes: 30
+
   bump-version:
     name: Bump version and create tag
     runs-on: ubuntu-latest
     needs: test
-    if: github.actor == github.repository_owner
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
+    outputs:
+      previous-version: ${{ steps.versions.outputs.previous-version }}
+      current-version: ${{ steps.versions.outputs.current-version }}
     permissions:
       contents: write
     steps:
@@ -59,57 +83,85 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Use Python from .python-version
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
       - name: Configure Git for GitHub Actions bot
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump version
-        id: bump
-        uses: callowayproject/bump-my-version@master
-        env:
-          BUMPVERSION_TAG: "true"
-        with:
-          args: ${{ github.event.inputs.bump_type }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sync Python dependencies
+        run: uv sync --locked --group dev
+
+      - name: Compute release version
+        id: versions
+        shell: bash
+        run: |
+          previous_version="$(uv run bump-my-version show current_version)"
+          current_version="$(uv run bump-my-version show --increment "${{ github.event.inputs.bump_type }}" new_version)"
+          {
+            echo "previous-version=${previous_version}"
+            echo "current-version=${current_version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Bump version and refresh uv.lock
+        run: |
+          uv run bump-my-version bump --no-commit --no-tag ${{ github.event.inputs.bump_type }}
+          uv lock
+
+      - name: Commit version bump
+        run: |
+          git add .python-version pyproject.toml package.json src/settings.ts uv.lock
+          git commit -m "chore: bump version to ${{ steps.versions.outputs.current-version }} [skip ci]"
+
+      - name: Create release tag
+        run: git tag "v${{ steps.versions.outputs.current-version }}" -m "Release version ${{ steps.versions.outputs.current-version }}"
+
+      - name: Push version commit and tag
+        run: git push origin HEAD:main --follow-tags
 
       - name: Create GitHub Release
-        if: steps.bump.outputs.bumped == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.bump.outputs.current-version }}
-          name: Release v${{ steps.bump.outputs.current-version }}
+          tag_name: v${{ steps.versions.outputs.current-version }}
+          name: Release v${{ steps.versions.outputs.current-version }}
           body: |
-            ## Version ${{ steps.bump.outputs.current-version }}
+            ## Version ${{ steps.versions.outputs.current-version }}
 
-            Bumped from version ${{ steps.bump.outputs.previous-version }} to ${{ steps.bump.outputs.current-version }}
+            Bumped from version ${{ steps.versions.outputs.previous-version }} to ${{ steps.versions.outputs.current-version }}
 
             This release was automatically created by the version bump workflow.
           draft: false
           prerelease: false
           generate_release_notes: true
+
   publish-node:
     name: Publish Custom Node to registry
     runs-on: ubuntu-latest
     needs: bump-version
-    if: github.actor == github.repository_owner
-    strategy:
-      matrix:
-        node-version: [20]
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: v${{ needs.bump-version.outputs.current-version }}
           fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: "pnpm"
 
       - name: Install dependencies

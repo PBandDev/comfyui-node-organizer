@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "setup:e2e": "tsx scripts/setup-test-comfy.ts",
+    "test:e2e": "playwright test",
+    "ci:local": "act push --workflows .github/workflows/ci.yaml -j unit-tests"
   },
   "keywords": [
     "comfyui",
@@ -31,8 +34,11 @@
   },
   "devDependencies": {
     "@comfyorg/comfyui-frontend-types": "^1.32.1",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^24.10.0",
     "@vitest/coverage-v8": "^4.0.16",
+    "fast-check": "^4.6.0",
+    "tsx": "^4.21.0",
     "vitest": "^4.0.16"
   }
 }

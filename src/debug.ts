@@ -1,4 +1,4 @@
-import { SETTINGS_IDS } from "./consants";
+import { SETTING_IDS } from "./settings";
 
 /** Check if debug logging is enabled */
 export function isDebugEnabled(): boolean {
@@ -8,13 +8,15 @@ export function isDebugEnabled(): boolean {
       const app = (
         globalThis as {
           app?: {
-            extensionManager?: { setting?: { get: <T>(id: string) => T } };
+            extensionManager?: {
+              setting?: { get: <T>(id: string) => T };
+            };
           };
         }
       ).app;
       return (
         app?.extensionManager?.setting?.get<boolean>(
-          SETTINGS_IDS.DEBUG_LOGGING
+          SETTING_IDS.DEBUG_LOGGING,
         ) ?? false
       );
     }
