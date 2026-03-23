@@ -2,7 +2,7 @@ export const EXTENSION_NAME = "comfy-node-organizer";
 export const SETTINGS_PREFIX = "Node Organizer";
 export const REPOSITORY_URL =
   "https://github.com/PBandDev/comfyui-node-organizer";
-export const CURRENT_VERSION = "1.3.0";
+export const CURRENT_VERSION = "2.0.0";
 
 export const DEFAULT_ALGORITHM_OPTIONS = [
   "sugiyama",
