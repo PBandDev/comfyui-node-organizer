@@ -16,3 +16,6 @@ node.zip
 .vscode/
 .claude/
 .changeset/
+.test-comfy/
+test-results/
+playwright-report/
