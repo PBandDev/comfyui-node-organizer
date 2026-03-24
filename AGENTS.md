@@ -13,6 +13,7 @@ Use `.changeset/plans/` only when prior design context is needed.
 pnpm install
 pnpm build
 pnpm build:lib
+pnpm test:lib
 pnpm typecheck
 pnpm test
 pnpm setup:e2e

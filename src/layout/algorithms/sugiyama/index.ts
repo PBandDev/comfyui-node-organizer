@@ -2,11 +2,11 @@
  * Sugiyama sub-module barrel export.
  */
 
-export { breakCycles } from "./cycle-break";
-export type { CycleBreakResult } from "./cycle-break";
+export { breakCycles } from "./cycle-break.js";
+export type { CycleBreakResult } from "./cycle-break.js";
 
-export { assignLayers } from "./layer-assign";
+export { assignLayers } from "./layer-assign.js";
 
-export { minimizeCrossings } from "./crossing-minimize";
+export { minimizeCrossings } from "./crossing-minimize.js";
 
-export { assignCoordinates } from "./coordinate-assign";
+export { assignCoordinates } from "./coordinate-assign.js";

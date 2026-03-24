@@ -21,6 +21,10 @@ import {
   inferGroupMembership,
   type Rect as MembershipRect,
 } from "./group-membership";
+import {
+  fromNumericGroupLayoutId,
+  toGroupLayoutId,
+} from "./layout/group-ids";
 
 // ---------------------------------------------------------------------------
 // Structural types for ComfyUI runtime objects
@@ -64,16 +68,6 @@ export interface GraphLike {
   readonly inputNode?: GraphBoundaryNode;
   readonly outputNode?: GraphBoundaryNode;
   setDirtyCanvas?(fg: boolean, bg: boolean): void;
-}
-
-function toGroupLayoutId(groupId: number): string {
-  return `group:${groupId}`;
-}
-
-function fromGroupLayoutId(groupId: string): number | null {
-  if (!groupId.startsWith("group:")) return null;
-  const parsed = Number(groupId.slice("group:".length));
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,7 +348,7 @@ export function anchorSelectedGroupLayoutResult(
   );
 
   for (const rootGroupId of selectedRootIds) {
-    const originalGraphGroupId = fromGroupLayoutId(rootGroupId);
+    const originalGraphGroupId = fromNumericGroupLayoutId(rootGroupId);
     if (originalGraphGroupId === null) continue;
 
     const originalGroup = graphGroupById.get(originalGraphGroupId);

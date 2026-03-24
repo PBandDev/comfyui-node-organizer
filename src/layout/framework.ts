@@ -17,9 +17,9 @@ import type {
   FrameworkResult,
   Position,
   GroupBounds,
-} from "./types";
-import { DEFAULT_FRAMEWORK_CONFIG } from "./types";
-import { tokenToAlgorithm } from "./tokens";
+} from "./types.js";
+import { DEFAULT_FRAMEWORK_CONFIG } from "./types.js";
+import { tokenToAlgorithm } from "./tokens.js";
 
 // ---------------------------------------------------------------------------
 // Public API

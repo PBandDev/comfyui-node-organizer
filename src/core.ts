@@ -1,43 +1,44 @@
-import { createHorizontalAlgorithm } from "./layout/algorithms/horizontal";
-import { createSugiyamaAlgorithm } from "./layout/algorithms/sugiyama";
-import { createVerticalAlgorithm } from "./layout/algorithms/vertical";
-import { layoutWithGroups } from "./layout/framework";
-import { parseLayoutToken } from "./layout/tokens";
+import {
+  createLayoutAlgorithm,
+  type LayoutAlgorithmName,
+} from "./layout/algorithm-factory.js";
+import { layoutWithGroups } from "./layout/framework.js";
+import { toGroupLayoutId } from "./layout/group-ids.js";
+import { parseLayoutToken } from "./layout/tokens.js";
 import {
   DEFAULT_FRAMEWORK_CONFIG,
   type FrameworkConfig,
-  type LayoutAlgorithm,
   type LayoutEdge as InternalLayoutEdge,
   type LayoutGroup as InternalLayoutGroup,
   type LayoutNode as InternalLayoutNode,
-} from "./layout/types";
+} from "./layout/types.js";
 
 export {
   inferGroupMembership,
   type GroupMembership,
   type Rect,
-} from "./group-membership";
+} from "./group-membership.js";
 
-export interface LayoutNode {
+export interface WorkflowNode {
   readonly id: string;
   readonly width: number;
   readonly height: number;
   readonly kind?: "node" | "subgraph-input" | "subgraph-output";
 }
 
-export interface LayoutEdge {
+export interface WorkflowEdge {
   readonly source: string;
   readonly target: string;
 }
 
-export interface LayoutGroup {
+export interface WorkflowGroup {
   readonly id: string;
   readonly title: string;
   readonly memberIds: ReadonlyArray<string>;
   readonly childGroupIds: ReadonlyArray<string>;
 }
 
-export interface PositionedRect {
+export interface WorkflowRect {
   readonly id: string;
   readonly x: number;
   readonly y: number;
@@ -45,38 +46,41 @@ export interface PositionedRect {
   readonly height: number;
 }
 
-export interface NormalizeResult {
-  readonly nodes: PositionedRect[];
-  readonly groups: PositionedRect[];
-  readonly memberships: Array<{
-    readonly groupId: string;
-    readonly nodeIds: string[];
-    readonly childGroupIds: string[];
-  }>;
+export interface WorkflowMembership {
+  readonly groupId: string;
+  readonly nodeIds: string[];
+  readonly childGroupIds: string[];
 }
 
-export interface NormalizeOptions {
-  readonly algorithm?: "sugiyama" | "horizontal" | "vertical";
+export interface NormalizeWorkflowResult {
+  readonly nodes: WorkflowRect[];
+  readonly groups: WorkflowRect[];
+  readonly memberships: WorkflowMembership[];
+}
+
+export interface NormalizeWorkflowOptions {
+  readonly algorithm?: LayoutAlgorithmName;
   readonly config?: Partial<FrameworkConfig>;
 }
 
-export { DEFAULT_FRAMEWORK_CONFIG, type FrameworkConfig } from "./layout/types";
-
-type AlgorithmName = NonNullable<NormalizeOptions["algorithm"]>;
+export { DEFAULT_FRAMEWORK_CONFIG, type FrameworkConfig } from "./layout/types.js";
 
 export function normalizeWorkflowGeometry(
   input: {
-    readonly nodes: ReadonlyArray<LayoutNode>;
-    readonly edges: ReadonlyArray<LayoutEdge>;
-    readonly groups: ReadonlyArray<LayoutGroup>;
+    readonly nodes: ReadonlyArray<WorkflowNode>;
+    readonly edges: ReadonlyArray<WorkflowEdge>;
+    readonly groups: ReadonlyArray<WorkflowGroup>;
   },
-  options?: NormalizeOptions,
-): NormalizeResult {
+  options?: NormalizeWorkflowOptions,
+): NormalizeWorkflowResult {
   const config: FrameworkConfig = {
     ...DEFAULT_FRAMEWORK_CONFIG,
     ...options?.config,
   };
-  const algorithm = createAlgorithm(options?.algorithm ?? "sugiyama", config);
+  const algorithm = createLayoutAlgorithm(
+    options?.algorithm ?? "sugiyama",
+    config,
+  );
 
   const nodes: InternalLayoutNode[] = input.nodes.map((node) => {
     if (node.kind === "subgraph-input") {
@@ -115,10 +119,10 @@ export function normalizeWorkflowGeometry(
     const token = parseLayoutToken(group.title);
 
     return {
-      id: toInternalGroupId(group.id),
+      id: toGroupLayoutId(group.id),
       title: group.title,
       memberIds: [...group.memberIds],
-      childGroupIds: group.childGroupIds.map(toInternalGroupId),
+      childGroupIds: group.childGroupIds.map(toGroupLayoutId),
       ...(token ? { token } : {}),
     };
   });
@@ -141,7 +145,7 @@ export function normalizeWorkflowGeometry(
         : [];
     }),
     groups: input.groups.flatMap((group) => {
-      const bounds = result.groupBounds.get(toInternalGroupId(group.id));
+      const bounds = result.groupBounds.get(toGroupLayoutId(group.id));
       return bounds
         ? [
             {
@@ -160,25 +164,4 @@ export function normalizeWorkflowGeometry(
       childGroupIds: [...group.childGroupIds],
     })),
   };
-}
-
-function createAlgorithm(
-  algorithmName: AlgorithmName,
-  config: FrameworkConfig,
-): LayoutAlgorithm {
-  switch (algorithmName) {
-    case "horizontal":
-      return createHorizontalAlgorithm(config.horizontalGap);
-    case "vertical":
-      return createVerticalAlgorithm(config.verticalGap);
-    case "sugiyama":
-      return createSugiyamaAlgorithm({
-        horizontalGap: config.horizontalGap,
-        verticalGap: config.verticalGap,
-      });
-  }
-}
-
-function toInternalGroupId(groupId: string): string {
-  return `group:${groupId}`;
 }

@@ -1,3 +1,8 @@
+import {
+  isCenterInsideRect,
+  isRectInsideRect,
+} from "./group-geometry.js";
+
 export interface Rect {
   readonly id: string;
   readonly x: number;
@@ -80,25 +85,4 @@ export function inferGroupMembership(
       childGroupIds: [...directChildIds],
     };
   });
-}
-
-function isRectInsideRect(inner: Rect, outer: Rect): boolean {
-  return (
-    inner.x >= outer.x &&
-    inner.y >= outer.y &&
-    inner.x + inner.width <= outer.x + outer.width &&
-    inner.y + inner.height <= outer.y + outer.height
-  );
-}
-
-function isCenterInsideRect(item: Rect, container: Rect): boolean {
-  const centerX = item.x + item.width / 2;
-  const centerY = item.y + item.height / 2;
-
-  return (
-    centerX >= container.x &&
-    centerX <= container.x + container.width &&
-    centerY >= container.y &&
-    centerY <= container.y + container.height
-  );
 }

@@ -6,7 +6,7 @@
  * repeatedly extract sinks, sources, then the node with max (out - in).
  */
 
-import type { LayoutNode, LayoutEdge } from "../../types";
+import type { LayoutNode, LayoutEdge } from "../../types.js";
 
 export interface CycleBreakResult {
   readonly edges: ReadonlyArray<LayoutEdge>;

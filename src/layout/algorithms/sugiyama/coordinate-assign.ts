@@ -5,7 +5,7 @@
  * and Y coordinates by stacking nodes top-to-bottom within each layer.
  */
 
-import type { LayoutNode, Position } from "../../types";
+import type { LayoutNode, Position } from "../../types.js";
 
 interface CoordinateConfig {
   readonly horizontalGap: number;

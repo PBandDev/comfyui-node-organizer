@@ -15,11 +15,11 @@ import type {
   LayoutInput,
   LayoutOutput,
   LayoutNode,
-} from "../types";
-import { breakCycles } from "./sugiyama/cycle-break";
-import { assignLayers } from "./sugiyama/layer-assign";
-import { minimizeCrossings } from "./sugiyama/crossing-minimize";
-import { assignCoordinates } from "./sugiyama/coordinate-assign";
+} from "../types.js";
+import { breakCycles } from "./sugiyama/cycle-break.js";
+import { assignLayers } from "./sugiyama/layer-assign.js";
+import { minimizeCrossings } from "./sugiyama/crossing-minimize.js";
+import { assignCoordinates } from "./sugiyama/coordinate-assign.js";
 
 export interface SugiyamaConfig {
   readonly horizontalGap: number;

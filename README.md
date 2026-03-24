@@ -53,6 +53,7 @@ Add tokens to group titles to control how nodes are arranged:
 - `pnpm test`
 - `pnpm build`
 - `pnpm build:lib` emits the pure library entrypoint to `lib/`
+- `pnpm test:lib` smoke-tests the built `comfyui-node-organizer/core` export
 - `pnpm setup:e2e` provisions a dedicated ComfyUI instance for browser tests and installs the exact workflow-template package required by the pinned ComfyUI checkout
 - `pnpm test:e2e` runs the full Playwright suite against that instance
 - Broad installed-template coverage is discovered live at E2E runtime from the pinned test ComfyUI environment, with one correctness-invariant test per installed workflow template
