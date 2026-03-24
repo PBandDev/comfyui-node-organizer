@@ -56,8 +56,20 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright browsers
         run: pnpx playwright install chromium --with-deps
+
+      - name: Cache test ComfyUI environment
+        uses: actions/cache@v4
+        with:
+          path: .test-comfy
+          key: ${{ runner.os }}-test-comfy-${{ hashFiles('.python-version', 'e2e.config.ts', 'scripts/setup-test-comfy.ts', 'scripts/setup-test-comfy-helpers.ts') }}
 
       - name: Setup test ComfyUI
         run: pnpm setup:e2e

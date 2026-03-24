@@ -1,5 +1,5 @@
 /**
- * Regression tests for v1 bugs that must not recur in v2.
+ * Regression tests for legacy bugs that must not recur.
  *
  * Each test targets a specific issue from the v1 changeset history:
  * - 0006: Y explosion (groups centering against tallest layer)
@@ -20,7 +20,7 @@ import {
 } from "./helpers";
 import { loadFixture } from "./fixtures";
 
-test.describe("Regression: v1 bug fixes", () => {
+test.describe("Regression: legacy bug fixes", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await waitForComfyUI(page);

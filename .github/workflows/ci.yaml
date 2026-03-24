@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, v2]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -35,6 +35,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Cache built extension
+        uses: actions/cache@v4
+        with:
+          path: dist/index.js
+          key: ${{ runner.os }}-dist-${{ github.sha }}
+
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
@@ -55,14 +61,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Restore built extension
+        uses: actions/cache@v4
+        with:
+          path: dist/index.js
+          key: ${{ runner.os }}-dist-${{ github.sha }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright browsers
         run: pnpx playwright install chromium --with-deps
 
-      - name: Build extension
-        run: pnpm build
-
       - name: Install uv
         uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Cache test ComfyUI environment
+        uses: actions/cache@v4
+        with:
+          path: .test-comfy
+          key: ${{ runner.os }}-test-comfy-${{ hashFiles('.python-version', 'e2e.config.ts', 'scripts/setup-test-comfy.ts', 'scripts/setup-test-comfy-helpers.ts') }}
 
       - name: Setup test ComfyUI
         run: pnpm setup:e2e

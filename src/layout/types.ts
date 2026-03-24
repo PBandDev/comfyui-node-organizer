@@ -1,6 +1,6 @@
 /**
  * Pure layout types — no ComfyUI/LGraph dependencies.
- * These are the abstract types for the v2 layout framework.
+ * These are the abstract types for the layout framework.
  */
 
 /** Position as a simple object */

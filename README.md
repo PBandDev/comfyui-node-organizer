@@ -62,9 +62,7 @@ Visual regression baselines are platform-specific: committed snapshots use `-win
 
 Install [act](https://github.com/nektos/act) and Docker, then run:
 
-- `pnpm ci:local` runs the unit-test and build workflow inside a local container
-
-E2E tests still require the normal local ComfyUI provisioning flow and are not part of the `act` path yet.
+- `pnpm ci:local` runs the full local CI workflow with `act`
 
 ## Release
 

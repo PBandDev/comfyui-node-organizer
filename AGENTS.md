@@ -53,9 +53,9 @@ Version bumping:
 - Installed `comfyui-workflow-templates` are discovered live at E2E runtime from the pinned test ComfyUI environment.
 - Broad installed-template coverage asserts correctness invariants only; strict topological order remains repo-fixture-only.
 - Visual regression is graph-canvas scoped and uses platform-specific `-win32` / `-linux` baselines.
-- `pnpm ci:local` covers unit/build parity only.
+- `pnpm ci:local` runs the full local CI workflow with `act`.
 
 ## Known Friction
 
 - Some real ComfyUI workflows load with imperfect group rectangles. Verify against live runtime before changing containment behavior.
-- A small number of real installed templates have topological-order violations due to complex inter-group connections. Tracked for v2.1.
+- A small number of real installed templates have topological-order violations due to complex inter-group connections. Tracked for a future minor release.
