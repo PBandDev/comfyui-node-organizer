@@ -12,6 +12,7 @@ Use `.changeset/plans/` only when prior design context is needed.
 ```bash
 pnpm install
 pnpm build
+pnpm build:lib
 pnpm typecheck
 pnpm test
 pnpm setup:e2e
@@ -30,6 +31,8 @@ Version bumping:
 - Keep `.python-version` and `uv.lock` in sync with the publish workflow.
 - Local `.changeset/*` files are intentionally gitignored. Do not commit them.
 - Verify runtime behavior in ComfyUI before changing adapter logic or making claims about ComfyUI APIs.
+- `src/core.ts` is the public library entrypoint. It must stay free of ComfyUI-specific imports such as `index.ts`, `adapter.ts`, `runtime.ts`, `settings.ts`, `debug.ts`, `bounds.ts`, or `utils.ts`.
+- Library output is emitted to `lib/` by `pnpm build:lib` / `tsc -p tsconfig.lib.json`. The `prepare` script runs that build automatically for GitHub dependency consumers.
 
 ## Runtime Facts
 

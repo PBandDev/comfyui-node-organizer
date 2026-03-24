@@ -52,12 +52,20 @@ Add tokens to group titles to control how nodes are arranged:
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
+- `pnpm build:lib` emits the pure library entrypoint to `lib/`
 - `pnpm setup:e2e` provisions a dedicated ComfyUI instance for browser tests and installs the exact workflow-template package required by the pinned ComfyUI checkout
 - `pnpm test:e2e` runs the full Playwright suite against that instance
 - Broad installed-template coverage is discovered live at E2E runtime from the pinned test ComfyUI environment, with one correctness-invariant test per installed workflow template
 
 Checked-in repo fixtures live in `tests/fixtures/`. Visual regression is graph-canvas scoped and runs as part of the normal E2E suite.
 Visual regression baselines are platform-specific: committed snapshots use `-win32` and `-linux` suffixes.
+
+## Library API
+
+`comfyui-node-organizer/core` exposes the pure Node-safe geometry helpers for non-ComfyUI consumers. The public surface is intentionally small: `inferGroupMembership()` for spatial membership inference and `normalizeWorkflowGeometry()` for layout on plain JSON-serializable workflow data.
+
+Build it with `pnpm build:lib`. GitHub dependency consumers receive the built `lib/` artifacts through the package `prepare` step.
+
 ### Local CI
 
 Install [act](https://github.com/nektos/act) and Docker, then run:
