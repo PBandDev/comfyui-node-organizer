@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^7.1.12
-        version: 7.3.0(@types/node@24.10.4)(tsx@4.21.0)
     devDependencies:
       '@comfyorg/comfyui-frontend-types':
         specifier: ^1.32.1
@@ -33,6 +26,12 @@ importers:
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.12
+        version: 7.3.0(@types/node@24.10.4)(tsx@4.21.0)
       vitest:
         specifier: ^4.0.16
         version: 4.0.16(@types/node@24.10.4)(tsx@4.21.0)

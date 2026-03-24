@@ -33,7 +33,8 @@ Version bumping:
 - Local `.changeset/*` files are intentionally gitignored. Do not commit them.
 - Verify runtime behavior in ComfyUI before changing adapter logic or making claims about ComfyUI APIs.
 - `src/core.ts` is the public library entrypoint. It must stay free of ComfyUI-specific imports such as `index.ts`, `adapter.ts`, `runtime.ts`, `settings.ts`, `debug.ts`, `bounds.ts`, or `utils.ts`.
-- Library output is emitted to `lib/` by `pnpm build:lib` / `tsc -p tsconfig.lib.json`. The `prepare` script runs that build automatically for GitHub dependency consumers.
+- Library output is emitted to `lib/` by `pnpm build:lib` / `tsc -p tsconfig.lib.json`. The `prepare` script runs that build automatically on install.
+- The npm package exports `"."` → `lib/core.js`. There is no `./core` subpath.
 
 ## Runtime Facts
 
