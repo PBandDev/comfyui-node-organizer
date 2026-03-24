@@ -1,7 +1,7 @@
-import { createHorizontalAlgorithm } from "./algorithms/horizontal.js";
-import { createSugiyamaAlgorithm } from "./algorithms/sugiyama.js";
-import { createVerticalAlgorithm } from "./algorithms/vertical.js";
-import type { FrameworkConfig, LayoutAlgorithm } from "./types.js";
+import { createHorizontalAlgorithm } from "./algorithms/horizontal";
+import { createSugiyamaAlgorithm } from "./algorithms/sugiyama";
+import { createVerticalAlgorithm } from "./algorithms/vertical";
+import type { FrameworkConfig, LayoutAlgorithm } from "./types";
 
 export type LayoutAlgorithmName = "sugiyama" | "horizontal" | "vertical";
 

@@ -63,9 +63,17 @@ Visual regression baselines are platform-specific: committed snapshots use `-win
 
 ## Library API
 
-`comfyui-node-organizer/core` exposes the pure Node-safe geometry helpers for non-ComfyUI consumers. The public surface is intentionally small: `inferGroupMembership()` for spatial membership inference and `normalizeWorkflowGeometry()` for layout on plain JSON-serializable workflow data.
+Most users can ignore this section. The extension works entirely inside ComfyUI.
 
-Build it with `pnpm build:lib`. GitHub dependency consumers receive the built `lib/` artifacts through the package `prepare` step.
+`comfyui-node-organizer/core` exists for developers who want to reuse the layout engine outside ComfyUI, for example in a script, service, test harness, or workflow conversion tool.
+
+It exposes a small pure API:
+- `normalizeWorkflowGeometry(...)` lays out plain workflow data and returns absolute node and group rectangles
+- `inferGroupMembership(...)` infers direct group membership from node and group rectangles
+
+In practice: if you want "organize this workflow JSON the same way the extension would" without loading ComfyUI, this is the entrypoint.
+
+Build it with `pnpm build:lib`. `pnpm test:lib` verifies that the built `comfyui-node-organizer/core` package can be imported by Node.
 
 ### Local CI
 

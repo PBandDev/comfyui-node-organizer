@@ -5,7 +5,7 @@
  * path from any source to that node. Sources (in-degree 0) get layer 0.
  */
 
-import type { LayoutNode, LayoutEdge } from "../../types.js";
+import type { LayoutNode, LayoutEdge } from "../../types";
 
 /**
  * Assign layer indices to each node using longest-path from sources.

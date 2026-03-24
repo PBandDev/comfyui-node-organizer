@@ -6,7 +6,7 @@
  * Ignores edges (token layouts ignore DAG structure).
  */
 
-import type { LayoutAlgorithm, LayoutInput, LayoutOutput, Position } from "../types.js";
+import type { LayoutAlgorithm, LayoutInput, LayoutOutput, Position } from "../types";
 
 const DEFAULT_GAP = 40;
 

@@ -5,10 +5,10 @@
  * and creates the corresponding LayoutAlgorithm instances.
  */
 
-import type { LayoutToken, LayoutAlgorithm } from "./types.js";
-import { createHorizontalAlgorithm } from "./algorithms/horizontal.js";
-import { createVerticalAlgorithm } from "./algorithms/vertical.js";
-import { createGridAlgorithm } from "./algorithms/grid.js";
+import type { LayoutToken, LayoutAlgorithm } from "./types";
+import { createHorizontalAlgorithm } from "./algorithms/horizontal";
+import { createVerticalAlgorithm } from "./algorithms/vertical";
+import { createGridAlgorithm } from "./algorithms/grid";
 
 /**
  * Regex to match layout tokens in group titles.

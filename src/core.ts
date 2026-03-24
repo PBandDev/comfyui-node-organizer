@@ -1,23 +1,23 @@
 import {
   createLayoutAlgorithm,
   type LayoutAlgorithmName,
-} from "./layout/algorithm-factory.js";
-import { layoutWithGroups } from "./layout/framework.js";
-import { toGroupLayoutId } from "./layout/group-ids.js";
-import { parseLayoutToken } from "./layout/tokens.js";
+} from "./layout/algorithm-factory";
+import { layoutWithGroups } from "./layout/framework";
+import { toGroupLayoutId } from "./layout/group-ids";
+import { parseLayoutToken } from "./layout/tokens";
 import {
   DEFAULT_FRAMEWORK_CONFIG,
   type FrameworkConfig,
   type LayoutEdge as InternalLayoutEdge,
   type LayoutGroup as InternalLayoutGroup,
   type LayoutNode as InternalLayoutNode,
-} from "./layout/types.js";
+} from "./layout/types";
 
 export {
   inferGroupMembership,
   type GroupMembership,
   type Rect,
-} from "./group-membership.js";
+} from "./group-membership";
 
 export interface WorkflowNode {
   readonly id: string;
@@ -63,7 +63,7 @@ export interface NormalizeWorkflowOptions {
   readonly config?: Partial<FrameworkConfig>;
 }
 
-export { DEFAULT_FRAMEWORK_CONFIG, type FrameworkConfig } from "./layout/types.js";
+export { DEFAULT_FRAMEWORK_CONFIG, type FrameworkConfig } from "./layout/types";
 
 export function normalizeWorkflowGeometry(
   input: {

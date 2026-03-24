@@ -15,8 +15,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "build:lib": "tsc -p tsconfig.lib.json",
-    "test:lib": "pnpm build:lib && tsx scripts/smoke-core-package.ts",
+    "build:lib": "vite build -c vite.config.lib.ts && tsc -p tsconfig.lib.json",
+    "test:lib": "pnpm build:lib && node scripts/smoke-core-package.mjs",
     "watch": "tsc && vite build --watch",
     "typecheck": "tsc --noEmit",
     "prepare": "pnpm build:lib",

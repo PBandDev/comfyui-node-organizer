@@ -6,7 +6,7 @@
  * their neighbors in the adjacent fixed layer.
  */
 
-import type { LayoutNode, LayoutEdge } from "../../types.js";
+import type { LayoutNode, LayoutEdge } from "../../types";
 
 /**
  * Reorder nodes within each layer to minimize edge crossings.

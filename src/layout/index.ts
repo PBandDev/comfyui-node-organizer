@@ -8,9 +8,9 @@ export {
   splitDisconnected,
   placeDisconnected,
   translatePositions,
-} from "./framework.js";
+} from "./framework";
 
-export { compactVertically, compactHorizontally } from "./compact.js";
+export { compactVertically, compactHorizontally } from "./compact";
 
 export type {
   Position,
@@ -24,6 +24,6 @@ export type {
   GroupBounds,
   FrameworkResult,
   FrameworkConfig,
-} from "./types.js";
+} from "./types";
 
-export { DEFAULT_FRAMEWORK_CONFIG } from "./types.js";
+export { DEFAULT_FRAMEWORK_CONFIG } from "./types";

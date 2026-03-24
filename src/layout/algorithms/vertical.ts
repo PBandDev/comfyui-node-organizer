@@ -5,7 +5,7 @@
  * Nodes are placed in input order; horizontally centered by midpoint.
  */
 
-import type { LayoutAlgorithm, LayoutInput, LayoutOutput, Position } from "../types.js";
+import type { LayoutAlgorithm, LayoutInput, LayoutOutput, Position } from "../types";
 
 const DEFAULT_GAP = 40;
 

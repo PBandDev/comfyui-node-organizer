@@ -1,7 +1,7 @@
 import {
   isCenterInsideRect,
   isRectInsideRect,
-} from "./group-geometry.js";
+} from "./group-geometry";
 
 export interface Rect {
   readonly id: string;

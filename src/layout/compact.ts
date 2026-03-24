@@ -3,7 +3,7 @@
  * All functions are pure: they return new maps, never mutate inputs.
  */
 
-import type { Position, LayoutNode } from "./types.js";
+import type { Position, LayoutNode } from "./types";
 
 /**
  * Remove vertical gaps between nodes by shifting them up.
