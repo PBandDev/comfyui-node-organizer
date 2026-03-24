@@ -187,3 +187,38 @@ jobs:
         with:
           personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
           skip_checkout: "true"
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: bump-version
+    if: github.actor == github.repository_owner && github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.bump-version.outputs.current-version }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build library
+        run: pnpm build:lib
+
+      - name: Smoke test
+        run: node scripts/smoke-core-package.mjs
+
+      - name: Publish to npm
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
