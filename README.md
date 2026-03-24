@@ -52,12 +52,29 @@ Add tokens to group titles to control how nodes are arranged:
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
+- `pnpm build:lib` emits the pure library entrypoint to `lib/`
+- `pnpm test:lib` smoke-tests the built `comfyui-node-organizer/core` export
 - `pnpm setup:e2e` provisions a dedicated ComfyUI instance for browser tests and installs the exact workflow-template package required by the pinned ComfyUI checkout
 - `pnpm test:e2e` runs the full Playwright suite against that instance
 - Broad installed-template coverage is discovered live at E2E runtime from the pinned test ComfyUI environment, with one correctness-invariant test per installed workflow template
 
 Checked-in repo fixtures live in `tests/fixtures/`. Visual regression is graph-canvas scoped and runs as part of the normal E2E suite.
 Visual regression baselines are platform-specific: committed snapshots use `-win32` and `-linux` suffixes.
+
+## Library API
+
+Most users can ignore this section. The extension works entirely inside ComfyUI.
+
+`comfyui-node-organizer/core` exists for developers who want to reuse the layout engine outside ComfyUI, for example in a script, service, test harness, or workflow conversion tool.
+
+It exposes a small pure API:
+- `normalizeWorkflowGeometry(...)` lays out plain workflow data and returns absolute node and group rectangles
+- `inferGroupMembership(...)` infers direct group membership from node and group rectangles
+
+In practice: if you want "organize this workflow JSON the same way the extension would" without loading ComfyUI, this is the entrypoint.
+
+Build it with `pnpm build:lib`. `pnpm test:lib` verifies that the built `comfyui-node-organizer/core` package can be imported by Node.
+
 ### Local CI
 
 Install [act](https://github.com/nektos/act) and Docker, then run:

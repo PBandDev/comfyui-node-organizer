@@ -19,3 +19,4 @@ node.zip
 .test-comfy/
 test-results/
 playwright-report/
+lib/

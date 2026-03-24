@@ -17,7 +17,14 @@ import type {
 } from "./layout/types";
 import { parseLayoutToken } from "./layout/tokens";
 import { debugLog } from "./debug";
-import { isGroupInsideGroup, isNodeCenterInsideGroup } from "./group-geometry";
+import {
+  inferGroupMembership,
+  type Rect as MembershipRect,
+} from "./group-membership";
+import {
+  fromNumericGroupLayoutId,
+  toGroupLayoutId,
+} from "./layout/group-ids";
 
 // ---------------------------------------------------------------------------
 // Structural types for ComfyUI runtime objects
@@ -61,16 +68,6 @@ export interface GraphLike {
   readonly inputNode?: GraphBoundaryNode;
   readonly outputNode?: GraphBoundaryNode;
   setDirtyCanvas?(fg: boolean, bg: boolean): void;
-}
-
-function toGroupLayoutId(groupId: number): string {
-  return `group:${groupId}`;
-}
-
-function fromGroupLayoutId(groupId: string): number | null {
-  if (!groupId.startsWith("group:")) return null;
-  const parsed = Number(groupId.slice("group:".length));
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,83 +139,39 @@ function buildGroupsFromGraph(graph: GraphLike): LayoutGroup[] {
   const graphGroups = graph._groups;
   if (graphGroups.length === 0) return [];
 
-  const graphGroupById = new Map<number, GraphGroup>();
-  for (const group of graphGroups) {
-    graphGroupById.set(group.id, group);
-  }
+  const nodeRects: MembershipRect[] = graph._nodes.map((node) => ({
+    id: String(node.id),
+    x: Number(node.pos[0]),
+    y: Number(node.pos[1]),
+    width: Number(node.size[0]),
+    height: Number(node.size[1]),
+  }));
+  const groupRects: MembershipRect[] = graphGroups.map((group) => ({
+    id: String(group.id),
+    x: Number(group.pos[0]),
+    y: Number(group.pos[1]),
+    width: Number(group.size[0]),
+    height: Number(group.size[1]),
+  }));
+  const memberships = inferGroupMembership(nodeRects, groupRects);
+  const membershipsByGroupId = new Map(
+    memberships.map((membership) => [membership.groupId, membership]),
+  );
 
-  const childGroupIds = new Map<number, number[]>();
-  const groupAreas = new Map<number, number>();
-  for (const group of graphGroups) {
-    groupAreas.set(group.id, Number(group.size[0]) * Number(group.size[1]));
-  }
+  return graphGroups.map((group) => {
+    const membership = membershipsByGroupId.get(String(group.id));
+    const token: LayoutToken | null = parseLayoutToken(group.title);
 
-  // Determine the nearest containing parent for each group.
-  for (const inner of graphGroups) {
-    let nearestParent: GraphGroup | null = null;
-    let nearestArea = Infinity;
-
-    for (const outer of graphGroups) {
-      if (outer.id === inner.id) continue;
-      if (!isGroupInside(inner, outer)) continue;
-
-      const outerArea = groupAreas.get(outer.id) ?? Infinity;
-      if (outerArea < nearestArea) {
-        nearestParent = outer;
-        nearestArea = outerArea;
-      }
-    }
-
-    if (nearestParent) {
-      const children = childGroupIds.get(nearestParent.id) ?? [];
-      children.push(inner.id);
-      childGroupIds.set(nearestParent.id, children);
-    }
-  }
-
-  // Build the LayoutGroup array
-  const result: LayoutGroup[] = [];
-
-  for (const g of graphGroups) {
-    const memberIds: string[] = [];
-    for (const node of graph._nodes) {
-      if (!isNodeInsideGroup(node, g)) continue;
-
-      let insideDirectChild = false;
-      for (const childGroupId of childGroupIds.get(g.id) ?? []) {
-        const childGroup = graphGroupById.get(childGroupId);
-        if (childGroup && isNodeInsideGroup(node, childGroup)) {
-          insideDirectChild = true;
-          break;
-        }
-      }
-
-      if (!insideDirectChild) {
-        memberIds.push(String(node.id));
-      }
-    }
-
-    const token: LayoutToken | null = parseLayoutToken(g.title);
-
-    result.push({
-      id: toGroupLayoutId(g.id),
-      title: g.title,
-      memberIds,
-      childGroupIds: (childGroupIds.get(g.id) ?? []).map(toGroupLayoutId),
+    return {
+      id: toGroupLayoutId(group.id),
+      title: group.title,
+      memberIds: membership?.nodeIds ?? [],
+      childGroupIds: (membership?.childGroupIds ?? []).map((childGroupId) =>
+        toGroupLayoutId(Number(childGroupId)),
+      ),
       ...(token ? { token } : {}),
-    });
-  }
-
-  return result;
-}
-
-/** Check if inner group is spatially inside outer group */
-function isGroupInside(inner: GraphGroup, outer: GraphGroup): boolean {
-  return isGroupInsideGroup(inner, outer);
-}
-
-function isNodeInsideGroup(node: GraphNode, group: GraphGroup): boolean {
-  return isNodeCenterInsideGroup(node, group);
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -395,7 +348,7 @@ export function anchorSelectedGroupLayoutResult(
   );
 
   for (const rootGroupId of selectedRootIds) {
-    const originalGraphGroupId = fromGroupLayoutId(rootGroupId);
+    const originalGraphGroupId = fromNumericGroupLayoutId(rootGroupId);
     if (originalGraphGroupId === null) continue;
 
     const originalGroup = graphGroupById.get(originalGraphGroupId);

@@ -3,11 +3,23 @@
   "version": "2.0.0",
   "description": "ComfyUI extension to organize nodes",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "./core": {
+      "import": "./lib/core.js",
+      "types": "./lib/core.d.ts"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:lib": "vite build -c vite.config.lib.ts && tsc -p tsconfig.lib.json",
+    "test:lib": "pnpm build:lib && node scripts/smoke-core-package.mjs",
     "watch": "tsc && vite build --watch",
     "typecheck": "tsc --noEmit",
+    "prepare": "pnpm build:lib",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

@@ -7,6 +7,10 @@
 
 import type { ComfyApp } from "@comfyorg/comfyui-frontend-types";
 import {
+  createLayoutAlgorithm,
+  type LayoutAlgorithmName,
+} from "./layout/algorithm-factory";
+import {
   SETTING_IDS,
   EXTENSION_NAME,
   SETTINGS_PREFIX,
@@ -24,9 +28,6 @@ import {
 } from "./adapter";
 import type { GraphLike } from "./adapter";
 import { layoutWithGroups } from "./layout/framework";
-import { createSugiyamaAlgorithm } from "./layout/algorithms/sugiyama";
-import { createHorizontalAlgorithm } from "./layout/algorithms/horizontal";
-import { createVerticalAlgorithm } from "./layout/algorithms/vertical";
 import type { LayoutAlgorithm, FrameworkConfig } from "./layout/types";
 import { computeGraphBounds } from "./bounds";
 import { DEFAULT_FRAMEWORK_CONFIG } from "./layout/types";
@@ -39,18 +40,6 @@ declare global {
 }
 
 const DEFAULT_ALGORITHM_NAME: DefaultAlgorithmName = "sugiyama";
-const algorithmFactories: Record<
-  DefaultAlgorithmName,
-  (config: Partial<FrameworkConfig>) => LayoutAlgorithm
-> = {
-  sugiyama: (config) =>
-    createSugiyamaAlgorithm({
-      horizontalGap: config.horizontalGap,
-      verticalGap: config.verticalGap,
-    }),
-  horizontal: (config) => createHorizontalAlgorithm(config.horizontalGap),
-  vertical: (config) => createVerticalAlgorithm(config.verticalGap),
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -70,7 +59,12 @@ export function createConfiguredDefaultAlgorithm(
   algorithmName: DefaultAlgorithmName,
   config: Partial<FrameworkConfig>,
 ): LayoutAlgorithm {
-  return algorithmFactories[algorithmName](config);
+  return createLayoutAlgorithm(algorithmName as LayoutAlgorithmName, {
+    horizontalGap:
+      config.horizontalGap ?? DEFAULT_FRAMEWORK_CONFIG.horizontalGap,
+    verticalGap:
+      config.verticalGap ?? DEFAULT_FRAMEWORK_CONFIG.verticalGap,
+  });
 }
 
 function getDefaultAlgorithm(config: Partial<FrameworkConfig>): LayoutAlgorithm {
